@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Résultats de l'exercice{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>{{ exercise.title }}</h2>
+    <p class="lead">{{ exercise.description }}</p>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Résultat</h5>
+            <p class="card-text">
+                Score : <strong>{{ "%.2f"|format(score) }}%</strong>
+            </p>
+        </div>
+    </div>
+
+    <div class="exercise-feedback">
+        {% for key, value in feedback.items() %}
+            <div class="card mb-3 {% if value.correct %}border-success{% else %}border-danger{% endif %}">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 {% if value.correct %}text-success{% else %}text-danger{% endif %}">
+                        Question {{ loop.index }}
+                    </h6>
+                    <p class="card-text">
+                        Votre réponse : <strong>{{ answers[key] }}</strong>
+                    </p>
+                    <p class="card-text">
+                        {{ value.message }}
+                    </p>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <div class="mt-4">
+        <a href="{{ url_for('view_course', course_id=attempt.course_id) if attempt.course_id else url_for('student_dashboard') }}" class="btn btn-primary">
+            Retourner au cours
+        </a>
+    </div>
+</div>
+{% endblock %}

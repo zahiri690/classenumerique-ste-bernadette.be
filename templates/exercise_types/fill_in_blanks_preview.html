@@ -1,0 +1,261 @@
+{% if content and content.sentences %}
+<div class="exercise-container">
+    <div class="questions-section">
+        {% for sentence in content.sentences %}
+        <div class="question-block">
+            <div class="question-text">{{ loop.index }}. {{ sentence.text|replace('___', '<span class="blank-space">___</span>')|safe }}</div>
+            <div class="form-group">
+                <input type="text" class="answer-input"
+                       name="answer_{{ loop.index0 }}" 
+                       placeholder="Votre réponse"
+                       required
+                       {% if attempt %}
+                           value="{{ (attempt.answers|from_json)[loop.index0] }}"
+                           readonly
+                       {% endif %}>
+                
+                {% if attempt %}
+                    <div class="feedback">
+                        {% if (attempt.answers|from_json)[loop.index0] == sentence.answer %}
+                            <div class="alert alert-success">
+                                <i class="fas fa-check-circle"></i> Bonne réponse !
+                            </div>
+                        {% else %}
+                            <div class="alert alert-danger">
+                                <i class="fas fa-times-circle"></i> Mauvaise réponse.
+                                <div class="mt-2">
+                                    <strong>La bonne réponse était :</strong> {{ sentence.answer }}
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="words-section">
+        <div class="words-title">Mots disponibles</div>
+        <div class="word-bank">
+            {% if content.available_words %}
+                {% for word in content.available_words %}
+                    <div class="word-item" onclick="selectWord(this)">{{ word }}</div>
+                {% endfor %}
+            {% else %}
+                <div class="alert alert-warning">Aucun mot disponible</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% else %}
+    <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle"></i> Aucune question n'a été ajoutée à cet exercice.
+    </div>
+{% endif %}
+
+<style>
+.exercise-container {
+    display: flex;
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.questions-section {
+    flex: 2;
+}
+
+.words-section {
+    flex: 1;
+    background-color: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    position: sticky;
+    top: 20px;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+}
+
+.question-block {
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    margin-bottom: 1.5rem;
+}
+
+.question-text {
+    color: #2c3e50;
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+}
+
+.blank-space {
+    display: inline-block;
+    min-width: 60px;
+    padding: 0.2rem 0.5rem;
+    background-color: #e9ecef;
+    border-radius: 4px;
+    color: #495057;
+    font-family: monospace;
+}
+
+.answer-input {
+    width: 100%;
+    max-width: 300px;
+    padding: 0.75rem 1rem;
+    border: 2px solid #e9ecef;
+    border-radius: 6px;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    background-color: white;
+}
+
+.answer-input:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.15);
+    outline: none;
+}
+
+.answer-input[readonly] {
+    background-color: #e9ecef;
+    cursor: not-allowed;
+}
+
+.words-title {
+    color: #2c3e50;
+    font-size: 1.1rem;
+    font-weight: 500;
+    margin-bottom: 1rem;
+}
+
+.word-bank {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.word-item {
+    background-color: #007bff;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.95rem;
+}
+
+.word-item:hover {
+    background-color: #0056b3;
+    transform: translateY(-2px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.word-item:active {
+    transform: translateY(0);
+}
+
+.alert {
+    border-radius: 6px;
+    margin-top: 12px;
+    padding: 12px 16px;
+}
+
+.alert i {
+    margin-right: 8px;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+    color: #155724;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+    color: #721c24;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+@media (max-width: 768px) {
+    .exercise-container {
+        flex-direction: column;
+    }
+
+    .words-section {
+        position: static;
+        margin-top: 1.5rem;
+    }
+
+    .answer-input {
+        max-width: 100%;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const words = document.querySelectorAll('.word-item');
+    const inputs = document.querySelectorAll('.answer-input');
+    let selectedInput = null;
+
+    function selectWord(wordElement) {
+        if (selectedInput && !selectedInput.readOnly) {
+            selectedInput.value = wordElement.textContent.trim();
+            selectedInput.setAttribute('aria-label', `Mot sélectionné : ${wordElement.textContent.trim()}`);
+            
+            // Trouver le prochain champ vide
+            const nextEmptyInput = Array.from(inputs).find(input => !input.value && !input.readOnly);
+            if (nextEmptyInput) {
+                nextEmptyInput.focus();
+            }
+        } else {
+            // Si aucun champ n'est sélectionné, focus sur le premier champ vide
+            const firstEmptyInput = Array.from(inputs).find(input => !input.value && !input.readOnly);
+            if (firstEmptyInput) {
+                firstEmptyInput.focus();
+            }
+        }
+    }
+
+    // Gestion des événements pour les champs de saisie
+    inputs.forEach(input => {
+        input.addEventListener('focus', function() {
+            selectedInput = this;
+            this.setAttribute('aria-label', 'Champ actif');
+        });
+
+        input.addEventListener('keydown', function(e) {
+            if ((e.key === 'Delete' || e.key === 'Backspace') && !this.readOnly) {
+                if (this.value) {
+                    this.value = '';
+                    this.setAttribute('aria-label', 'Champ vidé');
+                }
+            }
+        });
+    });
+
+    // Gestion des événements pour les mots
+    words.forEach(word => {
+        word.addEventListener('click', function() {
+            selectWord(this);
+        });
+
+        word.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                selectWord(this);
+            }
+        });
+
+        word.setAttribute('tabindex', '0');
+        word.setAttribute('role', 'button');
+        word.setAttribute('aria-label', `Sélectionner le mot : ${word.textContent.trim()}`);
+    });
+});
+</script>

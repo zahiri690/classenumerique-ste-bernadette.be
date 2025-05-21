@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>{% if exercise %}Modifier{% else %}Créer{% endif %} un exercice de mots à souligner</h2>
+    
+    <div class="alert alert-info" role="alert">
+        <i class="fas fa-info-circle"></i>
+        Pour créer un exercice de mots à souligner :
+        <ol>
+            <li>Entrez un titre descriptif pour l'exercice</li>
+            <li>Ajoutez une description qui explique la consigne aux élèves</li>
+            <li>Pour chaque phrase :
+                <ul>
+                    <li>Écrivez la phrase complète</li>
+                    <li>Listez les mots à souligner, séparés par des virgules</li>
+                </ul>
+            </li>
+            <li>Vous pouvez ajouter autant de phrases que vous voulez</li>
+            <li>Choisissez la difficulté de l'exercice</li>
+        </ol>
+    </div>
+
+    <form method="POST" class="mt-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        
+        <div class="mb-3">
+            <label for="title" class="form-label">Titre</label>
+            <input type="text" class="form-control" id="title" name="title" value="{{ exercise.title if exercise else '' }}" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="description" class="form-label">Description</label>
+            <textarea class="form-control" id="description" name="description" rows="3" required>{{ exercise.description if exercise else '' }}</textarea>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Phrases et mots à souligner</label>
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i>
+                Important : Pour chaque phrase, indiquez les mots exacts à souligner. Les élèves devront cliquer sur ces mots précis.
+            </div>
+            <div id="sentences-container">
+                {% if exercise and exercise.content %}
+                    {% for sentence in exercise.content.sentences %}
+                        <div class="sentence-group mb-4">
+                            <div class="input-group mb-2">
+                                <input type="text" class="form-control sentence-input" 
+                                       name="sentences[]" 
+                                       value="{{ ' '.join(sentence.words) }}" 
+                                       required>
+                                <button type="button" class="btn btn-outline-danger remove-sentence">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div class="words-to-underline mb-2">
+                                <label class="form-label">Mots à souligner (séparés par des virgules) :</label>
+                                <input type="text" class="form-control" 
+                                       name="words_to_underline[]" 
+                                       value="{{ ','.join(sentence.words_to_underline) if sentence.words_to_underline else '' }}" 
+                                       required>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="sentence-group mb-4">
+                        <div class="input-group mb-2">
+                            <input type="text" class="form-control sentence-input" 
+                                   name="sentences[]" 
+                                   placeholder="Entrez une phrase" 
+                                   required>
+                            <button type="button" class="btn btn-outline-danger remove-sentence">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="words-to-underline mb-2">
+                            <label class="form-label">Mots à souligner (séparés par des virgules) :</label>
+                            <input type="text" class="form-control" 
+                                   name="words_to_underline[]" 
+                                   placeholder="mot1, mot2, mot3" 
+                                   required>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+            <button type="button" class="btn btn-outline-primary" id="add-sentence">
+                <i class="fas fa-plus"></i> Ajouter une phrase
+            </button>
+        </div>
+
+        <div class="mb-3">
+            <label for="difficulty" class="form-label">Difficulté</label>
+            <select class="form-select" id="difficulty" name="difficulty" required>
+                <option value="easy" {% if exercise and exercise.difficulty == 'easy' %}selected{% endif %}>Facile</option>
+                <option value="medium" {% if exercise and exercise.difficulty == 'medium' %}selected{% endif %}>Moyen</option>
+                <option value="hard" {% if exercise and exercise.difficulty == 'hard' %}selected{% endif %}>Difficile</option>
+            </select>
+        </div>
+
+        {% if courses %}
+        <div class="mb-3">
+            <label for="course" class="form-label">Cours</label>
+            <select class="form-select" id="course" name="course_id">
+                <option value="">Aucun cours</option>
+                {% for course in courses %}
+                    <option value="{{ course.id }}" {% if exercise and exercise.course_id == course.id %}selected{% endif %}>
+                        {{ course.title }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save"></i> Enregistrer
+        </button>
+        <a href="{{ url_for('exercise_library') }}" class="btn btn-secondary">
+            <i class="fas fa-times"></i> Annuler
+        </a>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const container = document.getElementById('sentences-container');
+    const addButton = document.getElementById('add-sentence');
+
+    function createSentenceGroup() {
+        const div = document.createElement('div');
+        div.className = 'sentence-group mb-4';
+        div.innerHTML = `
+            <div class="input-group mb-2">
+                <input type="text" class="form-control sentence-input" 
+                       name="sentences[]" 
+                       placeholder="Entrez une phrase" 
+                       required>
+                <button type="button" class="btn btn-outline-danger remove-sentence">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="words-to-underline mb-2">
+                <label class="form-label">Mots à souligner (séparés par des virgules) :</label>
+                <input type="text" class="form-control" 
+                       name="words_to_underline[]" 
+                       placeholder="mot1, mot2, mot3" 
+                       required>
+            </div>
+        `;
+        return div;
+    }
+
+    addButton.addEventListener('click', function() {
+        const newGroup = createSentenceGroup();
+        container.appendChild(newGroup);
+    });
+
+    container.addEventListener('click', function(e) {
+        if (e.target.classList.contains('remove-sentence') || e.target.closest('.remove-sentence')) {
+            const sentenceGroup = e.target.closest('.sentence-group');
+            if (container.children.length > 1) {
+                sentenceGroup.remove();
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

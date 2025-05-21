@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Bibliothèque d'exercices{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Bibliothèque d'exercices</h1>
+        <a href="{{ url_for('create_exercise') }}" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> Créer un exercice
+        </a>
+    </div>
+
+    {% if exercises %}
+    <div class="row">
+        {% for exercise in exercises %}
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">{{ exercise.title }}</h5>
+                    <p class="card-text">
+                        <span class="badge bg-primary">{{ exercise.exercise_type }}</span>
+                        <small class="text-muted d-block mt-2">Créé le {{ exercise.created_at.strftime('%d/%m/%Y') }}</small>
+                    </p>
+                    <div class="btn-group">
+                        <a href="{{ url_for('edit_exercise', exercise_id=exercise.id) }}" class="btn btn-primary">
+                            <i class="bi bi-pencil"></i> Modifier
+                        </a>
+                        <a href="{{ url_for('view_exercise', exercise_id=exercise.id) }}" class="btn btn-info">
+                            <i class="bi bi-eye"></i> Aperçu
+                        </a>
+                        <div class="dropdown">
+                            <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton{{ exercise.id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-plus"></i> Ajouter à un cours
+                            </button>
+                            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton{{ exercise.id }}">
+                                {% for course in courses %}
+                                <li>
+                                    <form action="{{ url_for('add_exercise_to_course', course_id=course.id, exercise_id=exercise.id) }}" method="POST" style="display: inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="dropdown-item">{{ course.title }}</button>
+                                    </form>
+                                </li>
+                                {% else %}
+                                <li><span class="dropdown-item disabled">Aucun cours disponible</span></li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        <button type="button" class="btn btn-danger" onclick="confirmDelete('{{ exercise.id }}')">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <p>Vous n'avez pas encore créé d'exercices. Cliquez sur le bouton "Créer un exercice" pour commencer.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function confirmDelete(exerciseId) {
+    if (confirm('Êtes-vous sûr de vouloir supprimer cet exercice ? Cette action est irréversible.')) {
+        const baseUrl = "{{ url_for('delete_exercise', exercise_id=0) }}";
+        window.location.href = baseUrl.replace('0', exerciseId);
+    }
+}
+</script>
+{% endblock %}

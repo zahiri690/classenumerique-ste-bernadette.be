@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Modifier l'exercice{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('exercise_library') }}">Bibliothèque d'exercices</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Modifier l'exercice</li>
+        </ol>
+    </nav>
+
+    <div class="card">
+        <div class="card-body">
+            <h1 class="card-title">Modifier l'exercice</h1>
+            <form method="POST" action="{{ url_for('edit_exercise', exercise_id=exercise.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="exercise_type" value="{{ exercise.exercise_type }}">
+                
+                <div class="mb-3">
+                    <label for="title" class="form-label">Titre de l'exercice</label>
+                    <input type="text" class="form-control" id="title" name="title" value="{{ exercise.title }}" required>
+                </div>
+
+                {% if exercise.exercise_type == 'fill_in_blanks' %}
+                <div id="phrasesContainer">
+                    <h3>Phrases avec trous</h3>
+                    <p class="text-muted">Utilisez ___ (trois underscores) pour indiquer un trou.</p>
+                    
+                    {% for phrase, answer in zip(exercise.content.phrases, exercise.content.answers) %}
+                    <div class="phrase-group mb-3">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="form-label">Phrase</label>
+                                <input type="text" class="form-control" name="phrases[]" value="{{ phrase }}" required>
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label">Réponse</label>
+                                <input type="text" class="form-control" name="answers[]" value="{{ answer }}" required>
+                            </div>
+                            <div class="col-md-1 d-flex align-items-end">
+                                <button type="button" class="btn btn-danger" onclick="removePhrase(this)">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <button type="button" class="btn btn-secondary mb-3" onclick="addPhrase()">
+                    <i class="bi bi-plus-circle"></i> Ajouter une phrase
+                </button>
+                {% endif %}
+
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
+                    <a href="{{ url_for('exercise_library') }}" class="btn btn-secondary">Annuler</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+<script>
+function addPhrase() {
+    const container = document.getElementById('phrasesContainer');
+    const newGroup = document.createElement('div');
+    newGroup.className = 'phrase-group mb-3';
+    newGroup.innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <label class="form-label">Phrase</label>
+                <input type="text" class="form-control" name="phrases[]" required>
+            </div>
+            <div class="col-md-5">
+                <label class="form-label">Réponse</label>
+                <input type="text" class="form-control" name="answers[]" required>
+            </div>
+            <div class="col-md-1 d-flex align-items-end">
+                <button type="button" class="btn btn-danger" onclick="removePhrase(this)">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        </div>
+    `;
+    container.appendChild(newGroup);
+}
+
+function removePhrase(button) {
+    const phraseGroup = button.closest('.phrase-group');
+    if (document.getElementsByClassName('phrase-group').length > 1) {
+        phraseGroup.remove();
+    } else {
+        alert('Vous devez avoir au moins une phrase.');
+    }
+}
+</script>
+{% endblock %}
+{% endblock %}

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Statistiques de {{ student.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('view_statistics') }}">Statistiques</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ student.name }}</li>
+        </ol>
+    </nav>
+
+    <h1>Statistiques de {{ student.name }}</h1>
+
+    {% for class_id, class_data in classes_data.items() %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="h5 mb-0">{{ class_data.name }}</h2>
+        </div>
+        <div class="card-body">
+            {% for course_id, course_data in class_data.courses.items() %}
+            <div class="mb-4">
+                <h3 class="h6">{{ course_data.title }}</h3>
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Exercice</th>
+                                <th>Type</th>
+                                <th>Meilleur score</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for exercise_id, exercise_data in course_data.exercises.items() %}
+                            <tr>
+                                <td>{{ exercise_data.title }}</td>
+                                <td>{{ exercise_data.type }}</td>
+                                <td>
+                                    {% if exercise_data.best_attempt %}
+                                        {{ "%.1f"|format(exercise_data.best_attempt.score) }}%
+                                    {% else %}
+                                        Non tenté
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if exercise_data.best_attempt %}
+                                        {{ exercise_data.best_attempt.created_at.strftime('%d/%m/%Y %H:%M') }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

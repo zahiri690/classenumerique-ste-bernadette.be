@@ -1,0 +1,168 @@
+{% extends "edit_exercise.html" %}
+
+{% block exercise_content %}
+{% if attempts_count is not none %}
+    <div class="alert alert-info" style="margin-bottom:15px;">
+        Nombre de soumissions pour cet exercice : <b>{{ attempts_count }}</b>
+    </div>
+{% endif %}
+<div id="qcm-editor" class="mb-4">
+    <div id="questions-container">
+        {% set questions = content.questions if content and content.questions else [] %}
+        {% for question in questions %}
+            <div class="question-block card mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title mb-0">Question {{ loop.index }}</h5>
+                        <button type="button" class="btn btn-danger btn-sm remove-question">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                    <div class="form-group">
+                        <label>Question :</label>
+                        <input type="text" class="form-control question-input" name="questions[]" value="{{ question.question }}" required>
+                    </div>
+                    <div class="options-container mt-3">
+                        {% for option in question.options %}
+                            <div class="option-block d-flex align-items-center gap-2 mb-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="correct[]" 
+                                           value="{{ loop.index0 }}" {{ 'checked' if question.correct == loop.index0 }}>
+                                </div>
+                                <input type="text" class="form-control option-input" name="options[]" 
+                                       value="{{ option }}" required>
+                                <button type="button" class="btn btn-outline-danger btn-sm remove-option">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <button type="button" class="btn btn-outline-primary btn-sm mt-2 add-option">
+                        <i class="fas fa-plus"></i> Ajouter une option
+                    </button>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    <button type="button" id="add-question" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Ajouter une question
+    </button>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const questionsContainer = document.getElementById('questions-container');
+    const addQuestionBtn = document.getElementById('add-question');
+
+    // Ajouter une nouvelle question
+    addQuestionBtn.addEventListener('click', function() {
+        const questionCount = questionsContainer.children.length;
+        const questionBlock = document.createElement('div');
+        questionBlock.className = 'question-block card mb-3';
+        questionBlock.innerHTML = `
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="card-title mb-0">Question ${questionCount + 1}</h5>
+                    <button type="button" class="btn btn-danger btn-sm remove-question">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+                <div class="form-group">
+                    <label>Expression mathématique :</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control expression-input" name="questions[${questionCount}]" required>
+                        <span class="input-group-text">=</span>
+                    </div>
+                    <small class="form-text text-muted">Exemple : 0,07 x 900</small>
+                </div>
+                <div class="options-container mt-3">
+                    <div class="option-block d-flex align-items-center gap-2 mb-2">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="correct[${questionCount}]" value="0" checked>
+                        </div>
+                        <input type="text" class="form-control option-input" name="options[${questionCount}][0]" required>
+                        <button type="button" class="btn btn-outline-danger btn-sm remove-option">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-outline-primary btn-sm mt-2 add-option">
+                    <i class="fas fa-plus"></i> Ajouter une option
+                </button>
+            </div>
+        `;
+        questionsContainer.appendChild(questionBlock);
+        setupQuestionEvents(questionBlock);
+    });
+
+    // Configuration des événements pour les questions existantes
+    document.querySelectorAll('.question-block').forEach(setupQuestionEvents);
+
+    function setupQuestionEvents(questionBlock) {
+        // Supprimer une question
+        questionBlock.querySelector('.remove-question').addEventListener('click', function() {
+            if (confirm('Êtes-vous sûr de vouloir supprimer cette question ?')) {
+                questionBlock.remove();
+                updateQuestionNumbers();
+            }
+        });
+
+        // Ajouter une option
+        questionBlock.querySelector('.add-option').addEventListener('click', function() {
+            const optionsContainer = questionBlock.querySelector('.options-container');
+            const optionCount = optionsContainer.querySelectorAll('.option-block').length;
+            const optionBlock = document.createElement('div');
+            optionBlock.className = 'option-block d-flex align-items-center gap-2 mb-2';
+            optionBlock.innerHTML = `
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="correct[]" 
+                           value="${optionCount}">
+                </div>
+                <input type="text" class="form-control option-input" name="options[]" required>
+                <button type="button" class="btn btn-outline-danger btn-sm remove-option">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            optionsContainer.appendChild(optionBlock);
+            setupOptionEvents(optionBlock);
+        });
+
+        // Configuration des événements pour les options existantes
+        questionBlock.querySelectorAll('.option-block').forEach(setupOptionEvents);
+    }
+
+    function setupOptionEvents(optionBlock) {
+        // Supprimer une option
+        optionBlock.querySelector('.remove-option').addEventListener('click', function() {
+            const optionsContainer = optionBlock.parentElement;
+            if (optionsContainer.children.length > 1) {
+                optionBlock.remove();
+                updateOptionNumbers(optionsContainer);
+            } else {
+                alert('Une question doit avoir au moins une option.');
+            }
+        });
+    }
+
+    function updateQuestionNumbers() {
+        document.querySelectorAll('.question-block').forEach((block, index) => {
+            block.querySelector('.card-title').textContent = `Question ${index + 1}`;
+            
+            // Mettre à jour les valeurs des boutons radio
+            block.querySelectorAll('.option-block').forEach((optionBlock, optionIndex) => {
+                const radio = optionBlock.querySelector('.form-check-input');
+                if (radio) {
+                    radio.value = optionIndex;
+                }
+            });
+        });
+    }
+
+    function updateOptionNumbers(optionsContainer) {
+        optionsContainer.querySelectorAll('.form-check-input').forEach((radio, index) => {
+            radio.value = index;
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,546 @@
+{% extends "base.html" %}
+
+{% block title %}Créer un exercice{% endblock title %}
+
+{% block content %}
+<div class="container py-4">
+    <h1>Créer un nouvel exercice</h1>
+    <form method="post" action="{{ url_for('create_exercise') }}">
+        {{ form.csrf_token }}
+        <div class="mb-3">
+            {{ form.exercise_type.label(class="form-label") }}
+            {{ form.exercise_type(class="form-select", id="exercise_type") }}
+            {% if form.exercise_type.errors %}
+                {% for error in form.exercise_type.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                {% endfor %}
+            {% endif %}
+        </div>
+
+        <div class="mb-3">
+            {{ form.title.label(class="form-label") }}
+            {{ form.title(class="form-control") }}
+            {% if form.title.errors %}
+                {% for error in form.title.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                {% endfor %}
+            {% endif %}
+        </div>
+
+        <div class="mb-3">
+            {{ form.description.label(class="form-label") }}
+            {{ form.description(class="form-control", rows=3) }}
+            {% if form.description.errors %}
+                {% for error in form.description.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                {% endfor %}
+            {% endif %}
+        </div>
+
+        <!-- Section QCM -->
+        <div id="qcm_section" class="exercise-type-section" style="display: none;">
+            <h3>Questions à choix multiples</h3>
+            <div id="questions_container"></div>
+            <button type="button" class="btn btn-primary mb-3" onclick="addQuestion()">
+                <i class="bi bi-plus-circle"></i> Ajouter une question
+            </button>
+        </div>
+
+        <!-- Section Mots mêlés -->
+        <div id="word_search_section" class="exercise-type-section" style="display: none;">
+            <h3>Mots mêlés</h3>
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i>
+                Les mots peuvent être placés horizontalement, verticalement ou en diagonale, dans les deux sens.
+                Utilisez uniquement des lettres (pas d'espaces, de chiffres ou de caractères spéciaux).
+            </div>
+            <div id="words_container"></div>
+            <button type="button" class="btn btn-primary mb-3" onclick="addWord()">
+                <i class="bi bi-plus-circle"></i> Ajouter un mot
+            </button>
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="grid_width" class="form-label">Largeur de la grille</label>
+                    <input type="number" 
+                           class="form-control" 
+                           id="grid_width" 
+                           name="grid_width" 
+                           min="5" 
+                           max="15" 
+                           value="10" 
+                           onchange="validateWordSearchForm()" 
+                           required />
+                </div>
+                <div class="col-md-6">
+                    <label for="grid_height" class="form-label">Hauteur de la grille</label>
+                    <input type="number" 
+                           class="form-control" 
+                           id="grid_height" 
+                           name="grid_height" 
+                           min="5" 
+                           max="15" 
+                           value="10" 
+                           onchange="validateWordSearchForm()" 
+                           required />
+                </div>
+                <div class="col-12">
+                    <small class="form-text text-muted">La taille de la grille doit être entre 5x5 et 15x15</small>
+                </div>
+            </div>
+            <div id="word_search_warning" class="alert alert-warning" style="display: none;"></div>
+        </div>
+
+        <!-- Section Texte à trous -->
+        <div id="fill_in_blanks_section" class="exercise-type-section" style="display: none;">
+            <h3>Texte à trous</h3>
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i>
+                Pour créer un trou, entourez le mot avec des crochets. Exemple : Le [chat] dort.
+            </div>
+            <div id="phrases_container" class="mb-3"></div>
+            <button type="button" class="btn btn-primary mb-3" onclick="addPhrase()">
+                <i class="bi bi-plus-circle"></i> Ajouter une phrase
+            </button>
+            <small class="form-text text-muted">Utilisez ___ (trois tirets bas) pour indiquer l'emplacement d'un trou</small>
+        </div>
+
+        <!-- Section Association de paires -->
+        <div id="pairs_section" class="exercise-type-section" style="display: none;">
+            <h3>Association de paires</h3>
+            <div id="pairs_container" class="mb-3"></div>
+            <button type="button" class="btn btn-primary mb-3" onclick="addPair()">
+                <i class="bi bi-plus-circle"></i> Ajouter une paire
+            </button>
+        </div>
+
+        <button type="submit" class="btn btn-success mt-3">
+            <i class="bi bi-check-circle"></i> Créer l'exercice
+        </button>
+    </form>
+</div>
+
+{% block scripts %}
+<script>
+function showExerciseType() {
+    const exerciseType = document.getElementById('exercise_type').value;
+    const sections = document.querySelectorAll('.exercise-type-section');
+    
+    sections.forEach(section => section.style.display = 'none');
+
+    if (exerciseType) {
+        document.getElementById(exerciseType + '_section').style.display = 'block';
+    }
+}
+
+function removeQuestion(button) {
+    const questionCard = button.closest('.card');
+    if (questionCard) {
+        questionCard.remove();
+        // Renuméroter les questions restantes
+        const questions = document.querySelectorAll('.card-body label:first-child');
+        questions.forEach((label, index) => {
+            label.textContent = `Question ${index + 1}`;
+        });
+    }
+}
+
+function removeOption(button) {
+    const optionGroup = button.closest('.option-group');
+    const optionsContainer = optionGroup.closest('.options-container');
+    if (optionsContainer.querySelectorAll('.option-group').length > 1) {
+        optionGroup.remove();
+    } else {
+        alert('Une question doit avoir au moins une option.');
+    }
+}
+
+function addOption(button) {
+    const cardBody = button.closest('.card-body');
+    const optionsContainer = cardBody.querySelector('.options-container');
+    const questionIndex = cardBody.closest('.card').getAttribute('data-question-index') || 
+                         document.querySelectorAll('.card').length - 1;
+    const optionCount = optionsContainer.querySelectorAll('.option-group').length;
+
+    const optionGroup = document.createElement('div');
+    optionGroup.className = 'option-group mb-2';
+    optionGroup.innerHTML = `
+        <div class="input-group">
+            <div class="input-group-text">
+                <input type="radio" name="correct_answers[${questionIndex}]" value="${optionCount}" required>
+            </div>
+            <input type="text" name="options[${questionIndex}][]" class="form-control" required>
+            <button type="button" class="btn btn-outline-danger" onclick="removeOption(this)">
+                <i class="bi bi-trash"></i> Supprimer
+            </button>
+        </div>
+    `;
+
+    optionsContainer.appendChild(optionGroup);
+}
+
+function addQuestion() {
+    const container = document.getElementById('questions_container');
+    const questionDiv = document.createElement('div');
+    questionDiv.className = 'card mb-3';
+    const questionCount = container.children.length;
+
+    questionDiv.innerHTML = `
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <label class="form-label mb-0">Question ${questionCount + 1}</label>
+                <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeQuestion(this)">
+                    <i class="bi bi-trash"></i> Supprimer
+                </button>
+            </div>
+            <div class="mb-3">
+                <input type="text" name="questions[]" class="form-control" required>
+            </div>
+            <div class="options-container mb-3">
+                <div class="option-group mb-2">
+                    <div class="input-group">
+                        <div class="input-group-text">
+                            <input type="radio" name="correct_answers[${questionCount}]" value="0" required>
+                        </div>
+                        <input type="text" name="options[${questionCount}][]" class="form-control" required>
+                        <button type="button" class="btn btn-outline-danger" onclick="removeOption(this)">
+                            <i class="bi bi-trash"></i> Supprimer
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <button type="button" class="btn btn-outline-primary btn-sm" onclick="addOption(this)">
+                <i class="bi bi-plus-circle"></i> Ajouter une option
+            </button>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <button type="button" class="btn btn-outline-primary btn-sm" onclick="addOption(this)">
+                <i class="bi bi-plus-circle"></i> Ajouter une option
+            </button>
+        </div>
+    `;
+
+    container.appendChild(questionDiv);
+}
+
+function addWord() {
+    const container = document.getElementById('words_container');
+    const wordCount = container.children.length;
+
+    const wordDiv = document.createElement('div');
+    wordDiv.className = 'input-group mb-2';
+    wordDiv.innerHTML = `
+        <input type="text" 
+               name="words[]" 
+               class="form-control" 
+               placeholder="Entrez un mot" 
+               pattern="[A-Za-z]+"
+               maxlength="15"
+               oninput="this.value = this.value.replace(/[^A-Za-z]/g, '').toUpperCase()"
+               required>
+        <button type="button" 
+                class="btn btn-danger" 
+                onclick="this.closest('.input-group').remove();
+                         validateWordSearchForm();">
+            <i class="bi bi-trash"></i>
+        </button>
+    `;
+    container.appendChild(wordDiv);
+    validateWordSearchForm();
+}
+
+function addPhrase() {
+    const container = document.getElementById('phrases_container');
+    if (!container) return;
+
+    const phraseDiv = document.createElement('div');
+    phraseDiv.className = 'sentence-group mb-3';
+
+    phraseDiv.innerHTML = `
+        <div class="input-group">
+            <input type="text" 
+                   class="form-control" 
+                   name="sentences[]" 
+                   required 
+                   placeholder="Écrivez votre phrase en mettant le mot à deviner entre crochets, ex: Le [chat] dort.">
+            <button type="button" class="btn btn-outline-danger" onclick="removePhrase(this)">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+    `;
+
+    container.appendChild(phraseDiv);
+}
+
+function updatePhrasePreview(input) {
+    const previewDiv = input.parentElement.querySelector('.phrase-preview');
+    const text = input.value;
+    if (text.includes('___')) {
+        previewDiv.innerHTML = text.replace(/___/g, '<span class="badge bg-primary">___</span>');
+        input.classList.remove('is-invalid');
+    } else {
+        previewDiv.innerHTML = text;
+        if (text.trim()) {
+            input.classList.add('is-invalid');
+        }
+    }
+}
+
+function addToAvailableWords(word) {
+    if (!word) return;
+    
+    let wordsContainer = document.getElementById('available_words_container');
+    if (!wordsContainer) {
+        const container = document.getElementById('fill_in_blanks_section');
+        wordsContainer = document.createElement('div');
+        wordsContainer.id = 'available_words_container';
+        wordsContainer.className = 'mt-4';
+        wordsContainer.innerHTML = `
+            <h4>Mots disponibles</h4>
+            <div class="d-flex flex-wrap gap-2" id="words_list"></div>
+            <input type="hidden" name="available_words[]" id="available_words_input">
+        `;
+        container.insertBefore(wordsContainer, container.querySelector('button'));
+    }
+    
+    const wordsList = document.getElementById('words_list');
+    const availableWordsInput = document.getElementById('available_words_input');
+    const words = new Set(wordsList.querySelectorAll('.badge').length ? 
+        Array.from(wordsList.querySelectorAll('.badge')).map(b => b.textContent) : []);
+    
+    word = word.trim();
+    if (word && !words.has(word)) {
+        words.add(word);
+        wordsList.innerHTML = '';
+        Array.from(words).sort().forEach(w => {
+            const badge = document.createElement('span');
+            badge.className = 'badge bg-warning text-dark';
+            badge.textContent = w;
+            wordsList.appendChild(badge);
+        });
+        availableWordsInput.value = Array.from(words).join(',');
+    }
+}
+
+function removePhrase(button) {
+    const card = button.closest('.card');
+    const answer = card.querySelector('input[name="answers[]"]').value;
+    card.remove();
+    
+    // Mettre à jour la liste des mots disponibles
+    const answers = Array.from(document.querySelectorAll('input[name="answers[]"]')).map(input => input.value);
+    const wordsList = document.getElementById('words_list');
+    if (wordsList) {
+        wordsList.innerHTML = '';
+        const words = new Set(answers.filter(a => a.trim()));
+        Array.from(words).sort().forEach(word => {
+            const badge = document.createElement('span');
+            badge.className = 'badge bg-warning text-dark';
+            badge.textContent = word;
+            wordsList.appendChild(badge);
+        });
+        document.getElementById('available_words_input').value = Array.from(words).join(',');
+    }
+}
+
+function addPair() {
+    const container = document.getElementById('pairs_container');
+    const pairDiv = document.createElement('div');
+    pairDiv.className = 'card mb-3';
+    pairDiv.innerHTML = `
+        <div class="card-body">
+            <button type="button" class="btn-close float-end" onclick="this.closest('.card').remove()"></button>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Élément à gauche</label>
+                        <input type="text" class="form-control" name="items_left[]" required placeholder="Ex: 125 x 5">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">Élément à droite</label>
+                        <input type="text" class="form-control" name="items_right[]" required placeholder="Ex: 625">
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    container.appendChild(pairDiv);
+}
+
+function addOption(button) {
+    const optionsContainer = button.closest('.card-body').querySelector('.options-container');
+    const optionGroup = document.createElement('div');
+    optionGroup.className = 'option-group mb-2';
+    
+    const questionIndex = Array.from(button.closest('.card').parentElement.children).indexOf(button.closest('.card'));
+    const optionIndex = optionsContainer.children.length;
+    
+    optionGroup.innerHTML = `
+        <div class="input-group">
+            <div class="input-group-text">
+                <input type="radio" name="correct_answers[${questionIndex}]" value="${optionIndex}" required>
+            </div>
+            <input type="text" name="options[${questionIndex}][]" class="form-control" required>
+            <button type="button" class="btn btn-outline-danger" onclick="removeOption(this)">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+    `;
+    
+    optionsContainer.appendChild(optionGroup);
+    updateRadioNames(optionsContainer);
+}
+
+function removeOption(button) {
+    const optionsContainer = button.closest('.options-container');
+    if (optionsContainer.querySelectorAll('.option-item').length > 2) {
+        button.closest('.option-item').remove();
+        updateRadioNames(optionsContainer);
+    } else {
+        alert('Une question doit avoir au moins deux options.');
+    }
+}
+
+function updateRadioNames(optionsContainer) {
+    const questionIndex = Array.from(optionsContainer.closest('.card').parentElement.children).indexOf(optionsContainer.closest('.card'));
+    optionsContainer.querySelectorAll('input[type="radio"]').forEach((radio, index) => {
+        radio.name = `correct_answers[${questionIndex}]`;
+        radio.value = index;
+    });
+}
+
+function validateWordSearchForm() {
+    const words = document.querySelectorAll('#words_container input[type="text"]');
+    const gridWidth = document.getElementById('grid_width');
+    const gridHeight = document.getElementById('grid_height');
+    const submitBtn = document.querySelector('button[type="submit"]');
+    const warningDiv = document.getElementById('word_search_warning');
+    
+    let isValid = true;
+    let warningMessage = '';
+    
+    // Vérifier qu'il y a au moins un mot
+    if (words.length === 0) {
+        isValid = false;
+        warningMessage = 'Veuillez ajouter au moins un mot.';
+    }
+    
+    // Vérifier la longueur des mots par rapport à la grille
+    const maxGridDimension = Math.max(parseInt(gridWidth.value), parseInt(gridHeight.value));
+    for (const input of words) {
+        if (input.value.length > maxGridDimension) {
+            isValid = false;
+            warningMessage = `Le mot "${input.value}" est trop long pour la grille actuelle.`;
+            break;
+        }
+    }
+    
+    // Vérifier qu'il n'y a pas trop de mots pour la grille
+    const gridSize = parseInt(gridWidth.value) * parseInt(gridHeight.value);
+    const totalLetters = Array.from(words).reduce((sum, input) => sum + input.value.length, 0);
+    if (totalLetters > gridSize * 0.7) {  // Maximum 70% de la grille
+        isValid = false;
+        warningMessage = 'Trop de mots pour la taille de grille actuelle.';
+    }
+    
+    // Afficher ou masquer l'avertissement
+    if (warningDiv) {
+        warningDiv.textContent = warningMessage;
+        warningDiv.style.display = warningMessage ? 'block' : 'none';
+    }
+    
+    // Activer ou désactiver le bouton de soumission
+    if (submitBtn) {
+        submitBtn.disabled = !isValid;
+    }
+    
+    return isValid;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    showExerciseType();
+    document.getElementById('exercise_type').addEventListener('change', showExerciseType);
+
+    // Ajouter les écouteurs d'événements pour la validation des mots mêlés
+    const gridWidth = document.getElementById('grid_width');
+    const gridHeight = document.getElementById('grid_height');
+    
+    if (gridWidth && gridHeight) {
+        gridWidth.addEventListener('change', validateWordSearchForm);
+        gridHeight.addEventListener('change', validateWordSearchForm);
+    }
+
+    // Validation du formulaire
+    document.querySelector('form').addEventListener('submit', function(e) {
+        const exerciseType = document.getElementById('exercise_type').value;
+        const title = document.querySelector('input[name="title"]').value;
+
+        if (!exerciseType || !title) {
+            e.preventDefault();
+            alert('Veuillez remplir tous les champs obligatoires');
+            return;
+        }
+
+        // Validation spécifique à chaque type d'exercice
+        switch (exerciseType) {
+            case 'qcm':
+                const questions = document.querySelectorAll('#questions_container .card');
+                if (questions.length === 0) {
+                    e.preventDefault();
+                    alert('Veuillez ajouter au moins une question');
+                    return;
+                }
+                break;
+
+            case 'word_search':
+                if (!validateWordSearchForm()) {
+                    e.preventDefault();
+                    return;
+                }
+                break;
+
+            case 'fill_in_blanks':
+                const phrases = document.querySelectorAll('#phrases_container input[name="sentences[]"]');
+                const answers = document.querySelectorAll('#phrases_container input[name="answers[]"]');
+                
+                if (phrases.length === 0) {
+                    e.preventDefault();
+                    alert('Veuillez ajouter au moins une phrase');
+                    return;
+                }
+
+                for (let i = 0; i < phrases.length; i++) {
+                    const phrase = phrases[i].value;
+                    const answer = answers[i].value;
+
+                    if (!phrase || !answer) {
+                        e.preventDefault();
+                        alert('Veuillez remplir tous les champs');
+                        return;
+                    }
+
+                    if (!phrase.includes('___')) {
+                        e.preventDefault();
+                        alert(`La phrase ${i + 1} doit contenir un trou (___)`);
+                        return;
+                    }
+                }
+                break;
+
+            case 'pairs':
+                const pairs = document.querySelectorAll('#pairs_container .card');
+                if (pairs.length === 0) {
+                    e.preventDefault();
+                    alert('Veuillez ajouter au moins une paire');
+                    return;
+                }
+                break;
+        }
+    });
+});
+</script>
+{% endblock scripts %}
+{% endblock content %}

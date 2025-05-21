@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Tableau de bord - Élève{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Tableau de bord</h1>
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Mes classes</h5>
+                    <p class="card-text">Accédez à vos classes et leurs contenus.</p>
+                    <a href="{{ url_for('view_student_classes') }}" class="btn btn-primary">Voir mes classes</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Rejoindre une classe</h5>
+                    <p class="card-text">Utilisez un code pour rejoindre une nouvelle classe.</p>
+                    <form method="POST" action="{{ url_for('join_class') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="input-group">
+                            <input type="text" class="form-control" name="access_code" placeholder="Code de la classe" required>
+                            <button type="submit" class="btn btn-primary">Rejoindre</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

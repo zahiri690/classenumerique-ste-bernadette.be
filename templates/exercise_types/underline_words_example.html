@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Exemple d'exercice : Les formes de phrases</h2>
+    
+    <div class="alert alert-info mb-4">
+        <i class="fas fa-info-circle"></i>
+        Cliquez sur les mots de négation dans les phrases suivantes.
+    </div>
+
+    <div class="exercise-content">
+        <div class="sentence-list">
+            <div class="sentence mb-3 p-3 bg-light rounded">
+                <p class="mb-2">Tu <span class="word">ne</span> regardes <span class="word">jamais</span> de film de science fiction.</p>
+                <div class="feedback text-success" style="display: none;">
+                    <i class="fas fa-check"></i> Correct ! Les mots de négation sont "ne" et "jamais".
+                </div>
+            </div>
+
+            <div class="sentence mb-3 p-3 bg-light rounded">
+                <p class="mb-2">Vous <span class="word">n'</span>écoutez <span class="word">personne</span>.</p>
+                <div class="feedback text-success" style="display: none;">
+                    <i class="fas fa-check"></i> Correct ! Les mots de négation sont "n'" et "personne".
+                </div>
+            </div>
+
+            <div class="sentence mb-3 p-3 bg-light rounded">
+                <p class="mb-2">Je <span class="word">ne</span> trouve <span class="word">plus</span> mon sac.</p>
+                <div class="feedback text-success" style="display: none;">
+                    <i class="fas fa-check"></i> Correct ! Les mots de négation sont "ne" et "plus".
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-4">
+            <button class="btn btn-primary" onclick="checkAnswers()">
+                <i class="fas fa-check"></i> Vérifier mes réponses
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+.word {
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 3px;
+    transition: all 0.2s ease;
+}
+
+.word:hover {
+    background-color: rgba(33, 150, 243, 0.1);
+}
+
+.word.selected {
+    background-color: #2196f3;
+    color: white;
+}
+
+.word.correct {
+    background-color: #4caf50;
+    color: white;
+}
+
+.word.incorrect {
+    background-color: #f44336;
+    color: white;
+}
+
+.feedback {
+    margin-top: 10px;
+    font-size: 0.9rem;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const words = document.querySelectorAll('.word');
+    words.forEach(word => {
+        word.addEventListener('click', function() {
+            this.classList.toggle('selected');
+        });
+    });
+});
+
+function checkAnswers() {
+    const sentences = document.querySelectorAll('.sentence');
+    sentences.forEach(sentence => {
+        const feedback = sentence.querySelector('.feedback');
+        feedback.style.display = 'block';
+        
+        const words = sentence.querySelectorAll('.word');
+        words.forEach(word => {
+            if (word.classList.contains('selected')) {
+                word.classList.remove('selected');
+                word.classList.add('correct');
+            }
+        });
+    });
+}
+</script>
+{% endblock %}

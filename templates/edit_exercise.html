@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+
+{% block title %}Modifier l'exercice{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('exercise.exercise_library') }}">Bibliothèque d'exercices</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('exercise.view_exercise', exercise_id=exercise.id) }}">{{ exercise.title }}</a></li>
+                    <li class="breadcrumb-item active">Modifier</li>
+                </ol>
+            </nav>
+
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="h4 mb-0">Modifier l'exercice</h2>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('exercise.edit_exercise', exercise_id=exercise.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Titre *</label>
+                            <input type="text" class="form-control" id="title" name="title" value="{{ exercise.title }}" required>
+                            <div class="form-text">Le titre doit être clair et concis.</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="3">{{ exercise.description }}</textarea>
+                            <div class="form-text">Une description détaillée aide les élèves à mieux comprendre l'exercice.</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="exercise_type" class="form-label">Type d'exercice *</label>
+                            <select class="form-select" id="exercise_type" name="exercise_type" required>
+                                <option value="" selected disabled>Choisir un type d'exercice</option>
+                                <option value="file_upload" {% if exercise.exercise_type == 'file_upload' %}selected{% endif %}>Dépôt de fichier</option>
+                                <option value="pairs" {% if exercise.exercise_type == 'pairs' %}selected{% endif %}>Association de paires</option>
+                                <option value="word_search" {% if exercise.exercise_type == 'word_search' %}selected{% endif %}>Mots mêlés</option>
+                                <option value="qcm" {% if exercise.exercise_type == 'qcm' %}selected{% endif %}>QCM</option>
+                                <option value="fill_in_blanks" {% if exercise.exercise_type == 'fill_in_blanks' %}selected{% endif %}>Texte à trous</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Formulaire pour texte à trous -->
+                        <div id="fillInBlanksContent" {% if exercise.exercise_type != 'fill_in_blanks' %}style="display: none"{% endif %}>
+                            <h3>Texte à trous</h3>
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle"></i>
+                                Pour créer un trou, entourez le mot avec des crochets. Exemple : Le [chat] dort.
+                            </div>
+                            <div id="blanksContainer" class="mb-3">
+                                {% if content and content.phrases %}
+                                    {% for phrase in content.phrases %}
+                                        <div class="sentence-group mb-3">
+                                            <div class="input-group">
+                                                {% set sentence = phrase.text.replace('___', '[' + phrase.answer + ']') %}
+                                                <input type="text" class="form-control" name="sentences[]" value="{{ sentence }}" required>
+                                                <button type="button" class="btn btn-outline-danger" onclick="removeSentence(this)">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                            <button type="button" class="btn btn-outline-primary mb-3" onclick="addSentence()">
+                                <i class="bi bi-plus-circle"></i> Ajouter une phrase
+                            </button>
+                        </div>
+                        
+                        <!-- Section QCM -->
+                        <div id="qcm_section" class="exercise-type-section" {% if exercise.exercise_type != 'qcm' %}style="display: none"{% endif %}>
+                            <h3>Questions à choix multiples</h3>
+                            <div id="questionsContainer" class="mb-3">
+                                {% if content and content.questions %}
+                                    {% for question in content.questions %}
+                                        <div class="card mb-3 question-block" data-question-index="{{ loop.index0 }}">
+                                            <div class="card-body">
+                                                <h5 class="card-title">Question {{ loop.index }}</h5>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Question</label>
+                                                    <input type="text" class="form-control" name="questions[]" value="{{ question.text }}" required>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Options</label>
+                                                    <div class="options-container">
+                                                        {% set question_index = loop.index0 %}
+                                                        {% for option in question.options %}
+                                                            <div class="option-group mb-2">
+                                                                <div class="input-group">
+                                                                    <div class="input-group-text">
+                                                                        <input type="radio" name="correct_answers[{{ question_index }}]" value="{{ loop.index0 }}" {% if loop.index0 == question.correct_answer %}checked{% endif %} required>
+                                                                    </div>
+                                                                    <input type="text" class="form-control" name="options[{{ question_index }}][]" value="{{ option }}" required>
+                                                                    <button type="button" class="btn btn-outline-danger" onclick="removeOption(this)">
+                                                                        <i class="bi bi-trash"></i>
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        {% endfor %}
+                                                    </div>
+                                                    <button type="button" class="btn btn-outline-primary btn-sm mt-2" onclick="addOption(this)">
+                                                        <i class="bi bi-plus-circle"></i> Ajouter une option
+                                                    </button>
+                                                </div>
+                                                <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeQuestion(this)">
+                                                    <i class="bi bi-trash"></i> Supprimer la question
+                                                </button>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                            <button type="button" class="btn btn-outline-primary mb-3" onclick="addQuestion()">
+                                <i class="bi bi-plus-circle"></i> Ajouter une question
+                            </button>
+                        </div>
+
+                        <div class="text-end">
+                            <button type="submit" class="btn btn-primary">Enregistrer</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Fonctions de gestion des questions
+    function addQuestion() {
+        const container = document.getElementById('questionsContainer');
+        if (!container) return;
+
+        const questionCount = container.querySelectorAll('.question-block').length;
+        const questionDiv = document.createElement('div');
+        questionDiv.className = 'card mb-3 question-block';
+        questionDiv.dataset.questionIndex = questionCount;
+
+        questionDiv.innerHTML = `
+            <div class="card-body">
+                <h5 class="card-title">Question ${questionCount + 1}</h5>
+                <div class="mb-3">
+                    <label class="form-label">Question</label>
+                    <input type="text" class="form-control" name="questions[]" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Options</label>
+                    <div class="options-container">
+                        <div class="option-group mb-2">
+                            <div class="input-group">
+                                <div class="input-group-text">
+                                    <input type="radio" name="correct_answers[${questionCount}]" value="0" required checked>
+                                </div>
+                                <input type="text" class="form-control" name="options[${questionCount}][]" required>
+                                <button type="button" class="btn btn-outline-danger" onclick="removeOption(this)">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-outline-primary btn-sm mt-2" onclick="addOption(this)">
+                        <i class="bi bi-plus-circle"></i> Ajouter une option
+                    </button>
+                </div>
+                <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeQuestion(this)">
+                    <i class="bi bi-trash"></i> Supprimer la question
+                </button>
+            </div>
+        `;
+
+        container.appendChild(questionDiv);
+        updateQuestionNumbers();
+    }
+
+    function addOption(button) {
+        const questionBlock = button.closest('.card-body');
+        if (!questionBlock) return;
+
+        const optionsContainer = questionBlock.querySelector('.options-container');
+        if (!optionsContainer) return;
+
+        const optionCount = optionsContainer.querySelectorAll('.option-group').length;
+        const questionIndex = button.closest('.question-block').dataset.questionIndex;
+
+        const optionGroup = document.createElement('div');
+        optionGroup.className = 'option-group mb-2';
+        optionGroup.innerHTML = `
+            <div class="input-group">
+                <div class="input-group-text">
+                    <input type="radio" name="correct_answers[${questionIndex}]" value="${optionCount}" required>
+                </div>
+                <input type="text" class="form-control" name="options[${questionIndex}][]" required>
+                <button type="button" class="btn btn-outline-danger" onclick="removeOption(this)">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        `;
+
+        optionsContainer.appendChild(optionGroup);
+    }
+
+    function removeOption(button) {
+        const optionGroup = button.closest('.option-group');
+        const questionBlock = button.closest('.question-block');
+        if (!optionGroup || !questionBlock) return;
+
+        const optionsContainer = optionGroup.closest('.options-container');
+        if (!optionsContainer) return;
+
+        if (optionsContainer.querySelectorAll('.option-group').length > 1) {
+            optionGroup.remove();
+            updateOptionIndices(questionBlock);
+        }
+    }
+
+    function removeQuestion(button) {
+        const questionBlock = button.closest('.question-block');
+        if (!questionBlock) return;
+
+        const container = document.getElementById('questionsContainer');
+        if (container && container.children.length > 1) {
+            questionBlock.remove();
+            updateQuestionNumbers();
+        }
+    }
+
+    function updateQuestionNumbers() {
+        const questions = document.querySelectorAll('.question-block');
+        questions.forEach((question, index) => {
+            question.dataset.questionIndex = index;
+            const titleElement = question.querySelector('.card-title');
+            if (titleElement) {
+                titleElement.textContent = `Question ${index + 1}`;
+            }
+            
+            const radios = question.querySelectorAll('input[type="radio"]');
+            radios.forEach(radio => {
+                radio.name = `correct_answers[${index}]`;
+            });
+
+            const options = question.querySelectorAll('input[type="text"][name^="options"]');
+            options.forEach(option => {
+                option.name = `options[${index}][]`;
+            });
+        });
+    }
+
+    function updateOptionIndices(questionBlock) {
+        if (!questionBlock) return;
+
+        const options = questionBlock.querySelectorAll('.option-group');
+        options.forEach((option, index) => {
+            const radio = option.querySelector('input[type="radio"]');
+            if (radio) {
+                radio.value = index;
+            }
+        });
+    }
+
+    // Fonctions pour le texte à trous
+    function addSentence() {
+        const container = document.getElementById('blanksContainer');
+        if (!container) return;
+
+        const sentenceDiv = document.createElement('div');
+        sentenceDiv.className = 'sentence-group mb-3';
+        sentenceDiv.innerHTML = `
+            <div class="input-group">
+                <input type="text" class="form-control" name="sentences[]" required placeholder="Écrivez votre phrase ici...">
+                <button type="button" class="btn btn-outline-danger" onclick="removeSentence(this)">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        `;
+
+        container.appendChild(sentenceDiv);
+    }
+
+    function removeSentence(button) {
+        const sentenceGroup = button.closest('.sentence-group');
+        if (!sentenceGroup) return;
+
+        const container = document.getElementById('blanksContainer');
+        if (container && container.children.length > 1) {
+            sentenceGroup.remove();
+        }
+    }
+
+    // Gestion du changement de type d'exercice
+    document.addEventListener('DOMContentLoaded', () => {
+        const exerciseType = document.getElementById('exercise_type');
+        if (exerciseType) {
+            exerciseType.addEventListener('change', () => {
+                const qcmSection = document.getElementById('qcm_section');
+                const fillInBlanksContent = document.getElementById('fillInBlanksContent');
+                if (qcmSection) qcmSection.style.display = exerciseType.value === 'qcm' ? 'block' : 'none';
+                if (fillInBlanksContent) fillInBlanksContent.style.display = exerciseType.value === 'fill_in_blanks' ? 'block' : 'none';
+            });
+        }
+
+        // Initialisation des questions QCM
+        const qcmContainer = document.getElementById('questionsContainer');
+        if (qcmContainer && qcmContainer.children.length === 0) {
+            addQuestion();
+        }
+        updateQuestionNumbers();
+
+        // Initialisation du texte à trous
+        const blanksContainer = document.getElementById('blanksContainer');
+        if (blanksContainer && blanksContainer.children.length === 0) {
+            addSentence();
+        }
+    });
+</script>
+{% endblock %}

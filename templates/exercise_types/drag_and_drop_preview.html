@@ -1,0 +1,292 @@
+{% if content and content.draggable_items and content.drop_zones %}
+
+        <form method="POST" action="{{ url_for('submit_exercise_answer', exercise_id=exercise.id) }}" id="dragDropForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div id="answersInput"></div>
+
+            <div class="drag-drop-container">
+            <div class="row">
+                <div class="col-md-5">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Éléments de gauche</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="draggable-items">
+                                {% for item in content.draggable_items %}
+                                    <div class="draggable left-item" draggable="true" data-index="{{ loop.index0 }}">
+                                        <div class="item-text">{{ item }}</div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-2 d-flex align-items-center justify-content-center">
+                    <div class="connection-lines"></div>
+                </div>
+
+            <div class="col-md-5">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Éléments de droite</h5>
+                        </div>
+                        <div class="card-body">
+                            {% for item in content.drop_zones %}
+                                <div class="drop-zone mb-3" data-index="{{ loop.index0 }}">
+                                    <div class="zone-content">
+                                        <div class="item-text">{{ item }}</div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+        </div>
+
+        <div class="text-center mt-4">
+            <button type="submit" class="btn btn-primary btn-lg">
+                <i class="fas fa-check"></i> Valider mes réponses
+            </button>
+        </div>
+    </form>
+
+<style>
+    .drag-drop-container {
+        padding: 20px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .row {
+        display: flex;
+        justify-content: space-between;
+        margin: 0 -15px;
+    }
+
+    .col-md-6 {
+        padding: 0 15px;
+        width: 48%;
+    }
+
+    .source-container,
+    .target-container {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+        height: 100%;
+    }
+
+    .source-container {
+        text-align: left;
+    }
+
+    .target-container {
+        text-align: right;
+    }
+
+    .dropzone {
+        border: 2px dashed #ccc;
+        border-radius: 8px;
+        padding: 15px;
+        margin: 10px 0;
+        min-height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: white;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+
+    .dropzone.dragover {
+        border-color: #2196f3;
+        background-color: #e3f2fd;
+        transform: scale(1.02);
+    }
+
+    .draggable {
+        background-color: white;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 12px 15px;
+        margin: 8px 0;
+        cursor: move;
+        user-select: none;
+        transition: all 0.3s ease;
+        position: relative;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .source-container .draggable:hover {
+        transform: translateX(5px);
+        border-color: #2196f3;
+    }
+
+    .target-container .draggable:hover {
+        transform: translateX(-5px);
+        border-color: #2196f3;
+    }
+
+    .draggable.dragging {
+        opacity: 0.7;
+        transform: scale(1.05);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        cursor: grabbing;
+        background-color: #e3f2fd;
+        border-color: #2196f3;
+    }
+    
+    .drop-zone {
+        padding: 20px;
+        border: 2px dashed #bdbdbd;
+        border-radius: 8px;
+        min-height: 80px;
+        transition: all 0.3s;
+        background-color: #fff;
+        margin-bottom: 15px;
+    }
+    
+    .drop-zone .zone-content {
+        min-height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px;
+    }
+    
+    .drop-zone.drag-over {
+        border-color: #2196f3;
+        background-color: #e3f2fd;
+        transform: scale(1.02);
+    }
+    
+    .drop-zone.has-item {
+        border-style: solid;
+        border-color: #4caf50;
+        background-color: #f1f8e9;
+        box-shadow: 0 2px 6px rgba(76, 175, 80, 0.2);
+    }
+
+    .drop-zone.has-item .draggable {
+        margin: 0;
+        border-color: #4caf50;
+    }
+
+    .item-text {
+        text-align: center;
+        word-break: break-word;
+        color: #424242;
+        font-weight: 500;
+    }
+
+    .card {
+        border: none;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+
+    .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #e0e0e0;
+        padding: 15px 20px;
+    }
+
+    .card-title {
+        color: #2196f3;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .card-body {
+        padding: 20px;
+    }
+
+    .btn-primary {
+        padding: 12px 30px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    @media (max-width: 768px) {
+        .drag-drop-container {
+            padding: 10px;
+        }
+
+        .draggable {
+            font-size: 1em;
+            padding: 12px 15px;
+        }
+
+        .drop-zone {
+            padding: 15px;
+        }
+    }
+    </style>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        function updateAnswersInput() {
+            const answersInput = document.getElementById('answersInput');
+            answersInput.innerHTML = '';
+
+            dropZones.forEach((dropZone, index) => {
+                const draggable = dropZone.querySelector('.draggable');
+                if (draggable) {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = `answer_${index}`;
+                    input.value = draggable.dataset.index;
+                    answersInput.appendChild(input);
+                }
+            });
+        }
+
+        const draggables = document.querySelectorAll('.draggable');
+        const dropZones = document.querySelectorAll('.drop-zone');
+
+        draggables.forEach(draggable => {
+            draggable.addEventListener('dragstart', () => {
+                draggable.classList.add('dragging');
+            });
+
+            draggable.addEventListener('dragend', () => {
+                draggable.classList.remove('dragging');
+            });
+        });
+
+        dropZones.forEach(dropZone => {
+            dropZone.addEventListener('dragover', e => {
+                e.preventDefault();
+                dropZone.classList.add('drag-over');
+            });
+
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('drag-over');
+            });
+
+            dropZone.addEventListener('drop', e => {
+                e.preventDefault();
+                dropZone.classList.remove('drag-over');
+
+                const dragging = document.querySelector('.dragging');
+                if (dragging) {
+                    // Vérifier si la zone de dépôt est vide
+                    if (!dropZone.querySelector('.draggable')) {
+                        dropZone.querySelector('.zone-content').appendChild(dragging);
+                        dropZone.classList.add('has-item');
+                        updateAnswersInput();
+                    }
+                }
+            });
+        });
+    });
+    </script>
+{% else %}
+    <div class="alert alert-warning">
+        Cet exercice n'a pas encore d'éléments à associer.
+    </div>
+{% endif %}
+{% endif %}

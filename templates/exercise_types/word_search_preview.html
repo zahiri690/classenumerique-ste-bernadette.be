@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h2>{{ exercise.title }}</h2>
+    <p class="text-muted">{{ exercise.description }}</p>
+
+    <div class="card">
+        <div class="card-body">
+            <h3>Grille de mots mêlés</h3>
+            {% if content and content.grid %}
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="word-grid border p-3 mb-3" id="wordGrid">
+                            {% for row in content.grid %}
+                                {% set row_index = loop.index0 %}
+                                <div class="d-flex justify-content-center">
+                                    {% for letter in row %}
+                                        <div class="letter-cell border d-flex align-items-center justify-content-center" 
+                                             data-x="{{ loop.index0 }}" 
+                                             data-y="{{ row_index }}">
+                                            {{ letter }}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <h4>Mots à trouver :</h4>
+                        <div class="list-group" id="wordList">
+                            {% for word in content.words %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center"
+                                     data-word="{{ word }}">
+                                    {{ word }}
+                                    <span class="badge bg-secondary">À trouver</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <form id="wordSearchForm" method="post" action="{{ url_for('submit_exercise_answer', exercise_id=exercise.id) }}">
+                    <input type="hidden" name="found_words" id="foundWords" value="">
+                    <div class="mt-4 text-center">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-check"></i> Valider les réponses
+                        </button>
+                    </div>
+                </form>
+            {% else %}
+                <div class="alert alert-warning">Aucune grille n'a été définie pour cet exercice.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="mt-3">
+        <a href="{{ url_for('exercise_library') }}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left"></i> Retour à la bibliothèque
+        </a>
+    </div>
+</div>
+
+<style>
+.word-grid {
+    user-select: none;
+}
+
+.letter-cell {
+    width: 35px;
+    height: 35px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.letter-cell:hover {
+    background-color: #e9ecef;
+}
+
+.letter-cell.selected {
+    background-color: #cce5ff;
+}
+
+.letter-cell.found {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.list-group-item.found {
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+}
+
+.list-group-item.found .badge {
+    background-color: #28a745 !important;
+}
+</style>
+
+<script>
+let selectedCells = [];
+let foundWords = new Set();
+let isSelecting = false;
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Initialisation du jeu de mots mélés');
+    const grid = document.getElementById('wordGrid');
+    console.log('Grille trouvée :', grid);
+
+    // Ajouter les événements à chaque cellule
+    document.querySelectorAll('.letter-cell').forEach(cell => {
+        cell.addEventListener('mousedown', handleMouseDown);
+        cell.addEventListener('mouseover', handleMouseOver);
+        cell.addEventListener('touchstart', handleTouchStart, { passive: false });
+    });
+
+    // Événement de fin de sélection sur tout le document
+    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('touchend', handleTouchEnd);
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+});
+
+function handleMouseDown(e) {
+    e.preventDefault();
+    console.log('Début de sélection sur la cellule:', this.textContent);
+    isSelecting = true;
+    clearSelection();
+    selectCell(this);
+}
+
+function handleMouseOver(e) {
+    if (isSelecting) {
+        e.preventDefault();
+        console.log('Survol de la cellule:', this.textContent);
+        selectCell(this);
+    }
+}
+
+function handleMouseUp(e) {
+    if (isSelecting) {
+        console.log('Fin de sélection');
+        isSelecting = false;
+        checkWord();
+    }
+}
+
+function handleTouchStart(e) {
+    e.preventDefault();
+    console.log('Touch start');
+    isSelecting = true;
+    clearSelection();
+    selectCell(this);
+}
+
+function handleTouchMove(e) {
+    if (!isSelecting) return;
+    e.preventDefault();
+    
+    const touch = e.touches[0];
+    const cell = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (cell && cell.classList.contains('letter-cell')) {
+        console.log('Touch move sur:', cell.textContent);
+        selectCell(cell);
+    }
+}
+
+function handleTouchEnd(e) {
+    if (isSelecting) {
+        e.preventDefault();
+        console.log('Touch end');
+        isSelecting = false;
+        checkWord();
+    }
+}
+
+function selectCell(cell) {
+    if (selectedCells.length === 0) {
+        // Première cellule sélectionnée
+        cell.classList.add('selected');
+        selectedCells.push(cell);
+        console.log('Première cellule sélectionnée:', cell.textContent);
+        return;
+    }
+
+    if (selectedCells.includes(cell)) return;
+
+    const lastCell = selectedCells[selectedCells.length - 1];
+    const x1 = parseInt(lastCell.dataset.x);
+    const y1 = parseInt(lastCell.dataset.y);
+    const x2 = parseInt(cell.dataset.x);
+    const y2 = parseInt(cell.dataset.y);
+
+    // Calculer la direction
+    const dx = Math.sign(x2 - x1);
+    const dy = Math.sign(y2 - y1);
+
+    // Vérifier si la nouvelle cellule est adjacente dans la même direction
+    if (selectedCells.length > 1) {
+        const prevX = parseInt(selectedCells[selectedCells.length - 2].dataset.x);
+        const prevY = parseInt(selectedCells[selectedCells.length - 2].dataset.y);
+        const prevDx = Math.sign(x1 - prevX);
+        const prevDy = Math.sign(y1 - prevY);
+
+        // Si la direction change, on ne sélectionne pas la cellule
+        if (dx !== prevDx || dy !== prevDy) {
+            return;
+        }
+    }
+
+    // Vérifier si la cellule est adjacente (horizontalement, verticalement ou diagonalement)
+    const isAdjacent = Math.abs(x2 - x1) <= 1 && Math.abs(y2 - y1) <= 1;
+
+    if (isAdjacent) {
+        // Sélectionner toutes les cellules entre la dernière cellule et la nouvelle
+        const cells = document.querySelectorAll('.letter-cell');
+        cells.forEach(c => {
+            const x = parseInt(c.dataset.x);
+            const y = parseInt(c.dataset.y);
+            
+            // Vérifier si la cellule est sur la ligne entre lastCell et cell
+            const onLine = (x - x1) * dy === (y - y1) * dx;
+            const inRange = (x >= Math.min(x1, x2) && x <= Math.max(x1, x2)) &&
+                          (y >= Math.min(y1, y2) && y <= Math.max(y1, y2));
+            
+            if (onLine && inRange && !selectedCells.includes(c)) {
+                c.classList.add('selected');
+                selectedCells.push(c);
+                console.log('Cellule sélectionnée:', c.textContent);
+            }
+        });
+    }
+}
+
+function clearSelection() {
+    selectedCells.forEach(cell => {
+        if (!cell.classList.contains('found')) {
+            cell.classList.remove('selected');
+        }
+    });
+    selectedCells = [];
+}
+
+function checkWord() {
+    if (selectedCells.length < 2) {
+        clearSelection();
+        return;
+    }
+
+    // Construire le mot à partir des cellules sélectionnées
+    const word = selectedCells.map(cell => cell.textContent.trim()).join('');
+    const reverseWord = word.split('').reverse().join('');
+    console.log('Mot sélectionné:', word);
+    console.log('Mot inversé:', reverseWord);
+
+    // Vérifier si le mot existe dans la liste
+    const wordElements = document.querySelectorAll('#wordList .list-group-item');
+    let wordFound = false;
+
+    for (const element of wordElements) {
+        const targetWord = element.dataset.word;
+        console.log('Comparaison avec:', targetWord);
+        
+        if ((word.toUpperCase() === targetWord.toUpperCase() || 
+             reverseWord.toUpperCase() === targetWord.toUpperCase()) && 
+            !foundWords.has(targetWord)) {
+            console.log('Mot trouvé:', targetWord);
+            wordFound = true;
+            
+            // Marquer le mot comme trouvé
+            element.classList.add('found');
+            const badge = element.querySelector('.badge');
+            badge.textContent = 'Trouvé !';
+            badge.classList.remove('bg-secondary');
+            badge.classList.add('bg-success');
+
+            // Marquer les cellules de manière permanente
+            selectedCells.forEach(cell => {
+                cell.classList.remove('selected');
+                cell.classList.add('found');
+            });
+
+            // Ajouter à la liste des mots trouvés
+            foundWords.add(targetWord);
+
+            // Mettre à jour l'input caché
+            document.getElementById('foundWords').value = Array.from(foundWords).join(',');
+
+            // Vérifier si tous les mots sont trouvés
+            if (foundWords.size === wordElements.length) {
+                setTimeout(() => {
+                    alert('Félicitations ! Vous avez trouvé tous les mots !');
+                }, 100);
+            }
+            break;
+        }
+    }
+
+    if (!wordFound) {
+        clearSelection();
+    }
+}
+</script>
+{% endblock %}

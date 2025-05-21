@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Tableau de bord - Enseignant{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Tableau de bord Enseignant</h1>
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Mes classes</h5>
+                    <p class="card-text">Gérez vos classes et leurs contenus.</p>
+                    <a href="{{ url_for('view_classes') }}" class="btn btn-primary">Voir mes classes</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Exercices</h5>
+                    <p class="card-text">Créez et gérez vos exercices.</p>
+                    <a href="{{ url_for('exercise_library') }}" class="btn btn-primary">Bibliothèque d'exercices</a>
+                    <a href="{{ url_for('create_exercise') }}" class="btn btn-success mt-2">Créer un exercice</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Statistiques</h5>
+                    <p class="card-text">Consultez les statistiques de vos élèves.</p>
+                    <a href="{{ url_for('view_statistics') }}" class="btn btn-primary">Voir les statistiques</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

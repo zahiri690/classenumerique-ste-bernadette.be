@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="card-title">Modifier l'exercice</h2>
+                    
+                    <form method="POST" class="mt-4">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Titre de l'exercice</label>
+                            <input type="text" class="form-control" id="title" name="title" value="{{ exercise.title }}" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="3">{{ exercise.description }}</textarea>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <h4>Phrases à trous</h4>
+                            <p class="text-muted">Utilisez ___ (trois underscores) pour marquer les espaces à remplir.</p>
+                            
+                            <div id="sentences-container">
+                                {% for sentence in content.sentences %}
+                                <div class="mb-3 sentence-group">
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" name="sentences[]" value="{{ sentence }}" required>
+                                        <button type="button" class="btn btn-danger remove-sentence">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            
+                            <button type="button" class="btn btn-secondary" id="add-sentence">
+                                <i class="fas fa-plus"></i> Ajouter une phrase
+                            </button>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <h4>Mots disponibles</h4>
+                            <div id="words-container">
+                                {% for word in content.words %}
+                                <div class="mb-2 word-group">
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" name="words[]" value="{{ word }}" required>
+                                        <button type="button" class="btn btn-danger remove-word">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            
+                            <button type="button" class="btn btn-secondary" id="add-word">
+                                <i class="fas fa-plus"></i> Ajouter un mot
+                            </button>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <h4>Réponses correctes</h4>
+                            <div id="answers-container">
+                                {% for answer in content.answers %}
+                                <div class="mb-2 answer-group">
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" name="answers[]" value="{{ answer }}" required>
+                                        <button type="button" class="btn btn-danger remove-answer">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            
+                            <button type="button" class="btn btn-secondary" id="add-answer">
+                                <i class="fas fa-plus"></i> Ajouter une réponse
+                            </button>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Enregistrer les modifications
+                            </button>
+                            
+                            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                                <i class="fas fa-trash"></i> Supprimer l'exercice
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmation de suppression -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmer la suppression</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer cet exercice ? Cette action est irréversible.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form action="{{ url_for('delete_exercise', exercise_id=exercise.id) }}" method="POST" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger">Supprimer</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Fonction pour créer un nouveau champ avec bouton de suppression
+    function createField(containerSelector, inputName) {
+        const container = document.querySelector(containerSelector);
+        const div = document.createElement('div');
+        div.className = 'mb-2';
+        div.innerHTML = `
+            <div class="input-group">
+                <input type="text" class="form-control" name="${inputName}" required>
+                <button type="button" class="btn btn-danger remove-field">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+        container.appendChild(div);
+        
+        // Ajouter l'événement de suppression
+        div.querySelector('.remove-field').addEventListener('click', function() {
+            div.remove();
+        });
+    }
+    
+    // Ajouter les gestionnaires d'événements pour les boutons d'ajout
+    document.getElementById('add-sentence').addEventListener('click', function() {
+        createField('#sentences-container', 'sentences[]');
+    });
+    
+    document.getElementById('add-word').addEventListener('click', function() {
+        createField('#words-container', 'words[]');
+    });
+    
+    document.getElementById('add-answer').addEventListener('click', function() {
+        createField('#answers-container', 'answers[]');
+    });
+    
+    // Ajouter les gestionnaires d'événements pour les boutons de suppression existants
+    document.querySelectorAll('.remove-sentence, .remove-word, .remove-answer').forEach(button => {
+        button.addEventListener('click', function() {
+            this.closest('.mb-2, .mb-3').remove();
+        });
+    });
+});
+</script>
+{% endblock %}

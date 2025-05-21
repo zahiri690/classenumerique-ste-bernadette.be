@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Ajouter l'exercice à une classe{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('teacher_dashboard') }}">Tableau de bord</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('exercise_library') }}">Bibliothèque d'exercices</a></li>
+            <li class="breadcrumb-item active">Ajouter à une classe</li>
+        </ol>
+    </nav>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">Ajouter l'exercice "{{ exercise.title }}" à une classe</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" id="addExerciseForm" action="{{ url_for('process_quick_add_exercise', exercise_id=exercise.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="exercise_id" value="{{ exercise.id }}">
+                        
+                        <div class="mb-4">
+                            <label for="class_id" class="form-label">Sélectionner une classe</label>
+                            <select class="form-select" id="class_id" name="class_id" required>
+                                <option value="">Choisir une classe...</option>
+                                {% for class in classes %}
+                                <option value="{{ class.id }}" {% if selected_class_id and selected_class_id|int == class.id %}selected{% endif %}>{{ class.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="course_id" class="form-label">Sélectionner un cours</label>
+                            <select class="form-select" id="course_id" name="course_id" required {% if not courses %}disabled{% endif %}>
+                                <option value="">Sélectionner un cours...</option>
+                                {% for course in courses %}
+                                <option value="{{ course.id }}">{{ course.title }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
+                                <i class="fas fa-plus"></i> Ajouter l'exercice
+                            </button>
+                            <a href="{{ url_for('exercise_library') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left"></i> Retour à la bibliothèque
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const classSelect = document.getElementById('class_id');
+    const courseSelect = document.getElementById('course_id');
+    const submitBtn = document.getElementById('submitBtn');
+
+    // Fonction pour charger les cours
+    function loadCourses(classId) {
+        if (classId) {
+            window.location.href = `/quick-add-exercise/{{ exercise.id }}?class_id=${classId}`;
+        } else {
+            courseSelect.innerHTML = '<option value="">Choisir un cours...</option>';
+            courseSelect.disabled = true;
+        }
+    }
+
+    // Gestionnaire d'événement pour le changement de classe
+    classSelect.addEventListener('change', function() {
+        if (this.value) {
+            window.location.href = `/quick-add-exercise/{{ exercise.id }}?class_id=${this.value}`;
+        } else {
+            courseSelect.innerHTML = '<option value="">Sélectionner un cours...</option>';
+            courseSelect.disabled = true;
+            submitBtn.disabled = true;
+        }
+    });
+
+    // Gestionnaire d'événement pour le changement de cours
+    courseSelect.addEventListener('change', function() {
+        submitBtn.disabled = !this.value;
+        if (this.value) {
+            const form = document.getElementById('addExerciseForm');
+            form.action = `{{ url_for('process_quick_add_exercise', exercise_id=exercise.id) }}?class_id=${classSelect.value}`;
+        }
+    });
+
+    // Activer/désactiver le bouton submit en fonction de la sélection initiale
+    submitBtn.disabled = !courseSelect.value;
+});
+</script>
+{% endblock %}

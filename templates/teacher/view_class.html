@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block title %}{{ class_.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('view_classes') }}">Mes Classes</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ class_.name }}</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="card-title">{{ class_.name }}</h2>
+                    {% if class_.description %}
+                    <p class="card-text">{{ class_.description }}</p>
+                    {% endif %}
+                    <div class="alert alert-info">
+                        <strong>Code de la classe :</strong> {{ class_.access_code }}
+                        <button class="btn btn-sm btn-outline-primary ms-2" onclick="copyToClipboard('{{ class_.join_code }}')">
+                            <i class="bi bi-clipboard"></i> Copier
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h3 class="card-title mb-0">Cours</h3>
+                        <a href="{{ url_for('create_course', class_id=class_.id) }}" class="btn btn-primary">
+                            <i class="bi bi-plus-circle"></i> Créer un cours
+                        </a>
+                    </div>
+                    {% if class_.courses %}
+                        {% for course in class_.courses %}
+                        <div class="mb-4">
+                            <h4>{{ course.title }}</h4>
+                            {% if course.content %}
+                                <div class="course-content">
+                                    {{ course.content|safe }}
+                                </div>
+                            {% else %}
+                                <p class="text-muted">Aucun contenu pour le moment.</p>
+                            {% endif %}
+                            <a href="{{ url_for('create_course', class_id=class_.id) }}" class="btn btn-primary mt-2">
+                                <i class="bi bi-pencil"></i> Éditer
+                            </a>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted">Aucun cours pour le moment.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h3 class="card-title">Élèves inscrits</h3>
+                    {% if class_.students %}
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Nom</th>
+                                    <th>Email</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for student in class_.students %}
+                                <tr>
+                                    <td>{{ student.name }}</td>
+                                    <td>{{ student.email }}</td>
+                                    <td>
+                                        <button class="btn btn-danger btn-sm" onclick="confirmRemoveStudent({{ student.id }})">
+                                            <i class="bi bi-person-x"></i> Retirer
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">Aucun élève inscrit pour le moment.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h3 class="card-title">Exercices assignés</h3>
+                    <div class="list-group">
+                        {% if assigned_exercises %}
+                            {% for exercise in assigned_exercises %}
+                                {% if exercise is not none and exercise is not number %}
+                                <div class="list-group-item">
+                                    <div class="d-flex w-100 justify-content-between align-items-center">
+                                        <h5 class="mb-1">{{ exercise.title if exercise.title else 'Sans titre' }}</h5>
+                                        {% if exercise.exercise_type %}
+                                            <span class="badge bg-primary">{{ exercise.exercise_type }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="mt-2">
+                                        <a href="{{ url_for('view_exercise', exercise_id=exercise.id) if exercise.id else '#' }}" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-eye"></i> Voir
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-danger" onclick="confirmUnassignExercise({{ exercise.id if exercise.id else 0 }})">
+                                            <i class="bi bi-trash"></i> Retirer
+                                        </button>
+                                    </div>
+                                </div>
+                                {% else %}
+                                    <!-- Exercice invalide -->
+                                    <div class="list-group-item text-muted">
+                                        <em>Exercice invalide</em>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-muted">Aucun exercice assigné.</p>
+                        {% endif %}
+                    </div>
+                    <a href="#" class="btn btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#assignExerciseModal">
+                        <i class="bi bi-plus-circle"></i> Assigner un exercice
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal pour assigner un exercice -->
+<div class="modal fade" id="assignExerciseModal" tabindex="-1" aria-labelledby="assignExerciseModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="assignExerciseModalLabel">Assigner un exercice</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('assign_exercise', class_id=class_.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="exerciseSelect" class="form-label">Sélectionner un exercice</label>
+                        <select class="form-select" id="exerciseSelect" name="exercise_id" required>
+                            <option value="">Choisir un exercice...</option>
+                            {% for exercise in available_exercises %}
+                            <option value="{{ exercise.id }}">{{ exercise.title }} {% if exercise.exercise_type %}({{ exercise.exercise_type }}){% endif %}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Assigner</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+<script>
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        alert('Code copié dans le presse-papier !');
+    });
+}
+
+function confirmRemoveStudent(studentId) {
+    if (confirm('Êtes-vous sûr de vouloir retirer cet élève de la classe ?')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `{{ url_for('remove_student', class_id=class_.id, student_id=0) }}`.replace('0', studentId);
+
+        // Ajouter le token CSRF
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrf_token';
+        csrfInput.value = '{{ csrf_token() }}';
+        form.appendChild(csrfInput);
+
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+function confirmUnassignExercise(exerciseId) {
+    if (confirm('Êtes-vous sûr de vouloir retirer cet exercice de la classe ?')) {
+        // Créer un formulaire pour envoyer la requête POST
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `{{ url_for('unassign_exercise', class_id=class_.id) }}`;
+        
+        // Ajouter le token CSRF
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrf_token';
+        csrfInput.value = '{{ csrf_token() }}';
+        form.appendChild(csrfInput);
+        
+        // Ajouter l'ID de l'exercice
+        const exerciseInput = document.createElement('input');
+        exerciseInput.type = 'hidden';
+        exerciseInput.name = 'exercise_id';
+        exerciseInput.value = exerciseId;
+        form.appendChild(exerciseInput);
+        
+        // Ajouter le formulaire au document et le soumettre
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
+{% endblock %}
+{% endblock %}

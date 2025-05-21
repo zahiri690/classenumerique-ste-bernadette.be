@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Statistiques{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Statistiques des élèves</h1>
+
+    {% for class in classes %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="h5 mb-0">{{ class.name }}</h2>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Informations générales</h5>
+                            <ul class="list-unstyled">
+                                <li>Nombre d'élèves : {{ class.students|length }}</li>
+                                <li>Nombre d'exercices : {{ class.total_exercises }}</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-8">
+                    <h3 class="h5">Résultats par élève</h3>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Élève</th>
+                                    <th>Exercices complétés</th>
+                                    <th>Score moyen</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for student in class.students %}
+                                <tr>
+                                    <td>{{ student.name }}</td>
+                                    <td>{{ student.completed_exercises }}/{{ class.total_exercises }}</td>
+                                    <td>
+                                        {% if student.average_score %}
+                                            {{ "%.1f"|format(student.average_score) }}%
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('view_student_details', student_id=student.id) }}" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-chart-line"></i> Détails
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <p>Vous n'avez pas encore de classe.</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

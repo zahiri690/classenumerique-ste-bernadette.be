@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block title %}Statistiques de l'exercice{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Statistiques pour l'exercice : {{ exercise.title }}</h2>
+    {% if course %}
+        <h4>Dans le cours : {{ course.title }}</h4>
+    {% endif %}
+
+    <div class="row mt-4">
+        <!-- Statistiques globales -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Statistiques globales</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Nombre total de tentatives
+                            <span class="badge bg-primary rounded-pill">{{ stats.total_attempts }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Nombre total d'étudiants
+                            <span class="badge bg-info rounded-pill">{{ stats.total_students }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Score moyen
+                            <span class="badge bg-success rounded-pill">{{ "%.1f"|format(stats.average_score) }}%</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Taux de complétion
+                            <span class="badge bg-warning rounded-pill">{{ "%.1f"|format(stats.completion_rate) }}%</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Taux de réussite
+                            <span class="badge bg-success rounded-pill">{{ "%.1f"|format(stats.success_rate) }}%</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Graphique de distribution des scores -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Distribution des scores</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="scoresDistribution"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progrès des étudiants -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Progrès des étudiants</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Étudiant</th>
+                            <th>Statut</th>
+                            <th>Meilleur score</th>
+                            <th>Nombre de tentatives</th>
+                            <th>Dernière tentative</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in student_progress %}
+                        <tr>
+                            <td>{{ item.student.username }}</td>
+                            <td>
+                                {% if item.progress %}
+                                    {% if item.progress.status == 'completed' %}
+                                        <span class="badge bg-success">Terminé</span>
+                                    {% elif item.progress.status == 'in_progress' %}
+                                        <span class="badge bg-warning">En cours</span>
+                                    {% elif item.progress.status == 'needs_grading' %}
+                                        <span class="badge bg-info">À noter</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Non commencé</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="badge bg-secondary">Non commencé</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if item.progress and item.progress.best_score is not none %}
+                                    {{ "%.1f"|format(item.progress.best_score) }}%
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>{{ item.progress.attempts_count if item.progress else 0 }}</td>
+                            <td>
+                                {% if item.progress and item.progress.last_attempt %}
+                                    {{ item.progress.last_attempt.created_at.strftime('%d/%m/%Y %H:%M') }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if item.progress and item.progress.last_attempt %}
+                                    <a href="{{ url_for('view_attempt', exercise_id=exercise.id, attempt_id=item.progress.last_attempt.id) }}" 
+                                       class="btn btn-sm btn-primary">
+                                        Voir la dernière tentative
+                                    </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Préparation des données pour le graphique de distribution des scores
+    const scores = JSON.parse('{{ student_progress|selectattr("progress", "defined")|map(attribute="progress.best_score")|select("defined")|list|tojson|safe }}');
+    const validScores = scores.filter(score => score !== null);
+    
+    // Création des intervalles pour la distribution
+    const intervals = [0, 20, 40, 60, 80, 100];
+    const distribution = new Array(intervals.length - 1).fill(0);
+    
+    validScores.forEach(score => {
+        for (let i = 0; i < intervals.length - 1; i++) {
+            if (score >= intervals[i] && score < intervals[i + 1]) {
+                distribution[i]++;
+                break;
+            }
+        }
+    });
+    
+    // Configuration du graphique
+    const ctx = document.getElementById('scoresDistribution').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['0-20%', '20-40%', '40-60%', '60-80%', '80-100%'],
+            datasets: [{
+                label: 'Nombre d\'étudiants',
+                data: distribution,
+                backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}{{ class_.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('view_student_classes') }}">Mes Classes</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ class_.name }}</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="card-title">{{ class_.name }}</h2>
+                    {% if class_.description %}
+                    <p class="card-text">{{ class_.description }}</p>
+                    {% endif %}
+                    <p class="text-muted">
+                        <small>Enseignant: {{ class_.teacher.name }}</small>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Liste des cours -->
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h3 class="card-title">Cours</h3>
+                    {% if courses %}
+                        {% for course in courses %}
+                        <div class="mb-4">
+                            <h4>{{ course.title }}</h4>
+                            {% if course.content %}
+                                <div class="course-content">
+                                    {{ course.content|safe }}
+                                </div>
+                            {% else %}
+                                <p class="text-muted">Aucun contenu pour le moment.</p>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted">Aucun cours n'a encore été ajouté.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <!-- Exercices assignés -->
+            <div class="card">
+                <div class="card-body">
+                    <h3 class="card-title">Exercices à faire</h3>
+                    {% if class_.courses %}
+                        {% for course in class_.courses %}
+                            {% if course.exercises %}
+                                {% for exercise in course.exercises %}
+                                <div class="list-group-item">
+                                    <h5 class="mb-1">{{ exercise.title }}</h5>
+                                    {% if exercise.description %}
+                                    <p class="mb-1">{{ exercise.description }}</p>
+                                    {% endif %}
+                                    <small class="text-muted">Type: {{ exercise.exercise_type }}</small>
+                                    <div class="mt-2">
+                                        <a href="{{ url_for('view_exercise', exercise_id=exercise.id) }}" class="btn btn-primary btn-sm">
+                                            <i class="fas fa-pencil-alt"></i> Commencer
+                                        </a>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted">Aucun exercice n'a encore été assigné.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

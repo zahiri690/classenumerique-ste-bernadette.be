@@ -1,0 +1,100 @@
+{% extends "edit_exercise.html" %}
+
+{% block exercise_content %}
+<div id="drag-and-drop-editor" class="mb-4">
+    <div id="items-container">
+        {% set items = content.items if content and content.items else [] %}
+        {% for item in items %}
+            <div class="item-block card mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title mb-0">Élément {{ loop.index }}</h5>
+                        <button type="button" class="btn btn-danger btn-sm remove-item">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Texte de l'élément :</label>
+                                <input type="text" class="form-control" name="items[]" 
+                                       value="{{ item.text }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Zone de dépôt :</label>
+                                <input type="text" class="form-control" name="zones[]" 
+                                       value="{{ item.zone }}" required>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <button type="button" id="add-item" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Ajouter un élément
+    </button>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const itemsContainer = document.getElementById('items-container');
+    const addItemBtn = document.getElementById('add-item');
+
+    // Ajouter un nouvel élément
+    addItemBtn.addEventListener('click', function() {
+        const itemCount = itemsContainer.children.length;
+        const itemBlock = document.createElement('div');
+        itemBlock.className = 'item-block card mb-3';
+        itemBlock.innerHTML = `
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="card-title mb-0">Élément ${itemCount + 1}</h5>
+                    <button type="button" class="btn btn-danger btn-sm remove-item">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Texte de l'élément :</label>
+                            <input type="text" class="form-control" name="items[]" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Zone de dépôt :</label>
+                            <input type="text" class="form-control" name="zones[]" required>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        itemsContainer.appendChild(itemBlock);
+        setupItemEvents(itemBlock);
+    });
+
+    // Configuration des événements pour les éléments existants
+    document.querySelectorAll('.item-block').forEach(setupItemEvents);
+
+    function setupItemEvents(itemBlock) {
+        // Supprimer un élément
+        itemBlock.querySelector('.remove-item').addEventListener('click', function() {
+            if (confirm('Êtes-vous sûr de vouloir supprimer cet élément ?')) {
+                itemBlock.remove();
+                updateItemNumbers();
+            }
+        });
+    }
+
+    function updateItemNumbers() {
+        document.querySelectorAll('.item-block').forEach((block, index) => {
+            block.querySelector('.card-title').textContent = `Élément ${index + 1}`;
+        });
+    }
+});
+</script>
+{% endblock %}

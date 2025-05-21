@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Accueil{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="jumbotron">
+        <h1 class="display-4">Bienvenue sur Classes Numériques</h1>
+        <p class="lead">Une plateforme d'apprentissage interactive pour les enseignants et les élèves.</p>
+        {% if not current_user.is_authenticated %}
+            <hr class="my-4">
+            <p>Connectez-vous pour accéder à vos cours et exercices.</p>
+            <a class="btn btn-primary btn-lg" href="{{ url_for('login') }}" role="button">Se connecter</a>
+        {% else %}
+            <hr class="my-4">
+            {% if current_user.is_teacher %}
+                <a href="{{ url_for('teacher_dashboard') }}" class="btn btn-primary btn-lg">Accéder à mon tableau de bord</a>
+            {% else %}
+                <a href="{{ url_for('student_dashboard') }}" class="btn btn-primary btn-lg">Accéder à mon tableau de bord</a>
+            {% endif %}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

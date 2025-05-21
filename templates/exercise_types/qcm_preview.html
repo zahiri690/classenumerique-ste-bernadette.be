@@ -1,0 +1,364 @@
+{% if content and content.questions %}
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('exercise.submit_answer', exercise_id=exercise.id) }}" class="qcm-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                {% for question in content.questions %}
+                    {% set question_index = loop.index0 %}
+                    <div class="mb-4 question-block">
+                        <p class="question-text">{{ loop.index }}. {{ question.text }}</p>
+                        <div class="options-group">
+                            {% for choice in question.choices %}
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="radio" 
+                                           name="answer_{{ question_index }}" 
+                                           id="q{{ question_index }}_opt{{ loop.index0 }}" 
+                                           value="{{ loop.index0 }}" 
+                                           {% if attempt and attempt.answers|from_json and (attempt.answers|from_json)[question_index]|string == loop.index0|string %}checked{% endif %}
+                                           {% if attempt %}disabled{% endif %}
+                                           required>
+                                    <label class="form-check-label" for="q{{ question_index }}_opt{{ loop.index0 }}">
+                                        {{ choice }}
+                                    </label>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        
+                        {% if attempt %}
+                            <div class="mt-2">
+                                {% set user_answer = (attempt.answers|from_json)[loop.index0]|string %}
+                                {% if user_answer == question.correct_answer|string %}
+                                    <div class="alert alert-success">
+                                        <i class="fas fa-check-circle"></i> Bonne réponse !
+                                    </div>
+                                {% else %}
+                                    <div class="alert alert-danger">
+                                        <i class="fas fa-times-circle"></i> Mauvaise réponse.
+                                        <div class="mt-2">
+                                            <strong>La bonne réponse était :</strong> {{ question.choices[question.correct_answer] }}
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+                
+                {% if not attempt %}
+                    <div class="d-grid gap-2 col-md-6 mx-auto mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-check"></i> Valider mes réponses
+                        </button>
+                    </div>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+{% else %}
+    <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle"></i> Aucune question n'a été ajoutée à cet exercice.
+    </div>
+{% endif %}
+
+<style>
+.question-block {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.question-text {
+    color: #2c3e50;
+    font-size: 1.1rem;
+    font-weight: 500;
+    margin-bottom: 1rem;
+}
+
+.options-group {
+    margin-bottom: 1rem;
+}
+
+.form-check {
+    margin-bottom: 0.5rem;
+    padding: 10px 15px;
+    border-radius: 6px;
+    transition: background-color 0.2s;
+}
+
+.form-check:hover {
+    background-color: #e9ecef;
+}
+
+.form-check-input {
+    margin-top: 0.3rem;
+}
+
+.form-check-label {
+    color: #495057;
+    margin-left: 0.5rem;
+    cursor: pointer;
+}
+
+.alert {
+    border-radius: 6px;
+    margin-top: 12px;
+    padding: 12px 16px;
+}
+
+.alert i {
+    margin-right: 8px;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+    color: #155724;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+    color: #721c24;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    border: none;
+    border-radius: 6px;
+    padding: 12px 24px;
+    font-weight: 500;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    width: 100%;
+    max-width: 300px;
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+.btn-primary i {
+    margin-right: 8px;
+}
+</style>
+
+<style>
+.question-block {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.question-text {
+    color: #2c3e50;
+    font-size: 1.1rem;
+    font-weight: 500;
+    margin-bottom: 1rem;
+}
+
+.form-control {
+    border: 2px solid #e9ecef;
+    border-radius: 6px;
+    padding: 12px 15px;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    background-color: white;
+}
+
+.form-control:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.15);
+    outline: none;
+}
+
+.form-control[readonly] {
+    background-color: #e9ecef;
+    cursor: not-allowed;
+}
+
+.alert {
+    border-radius: 6px;
+    margin-top: 12px;
+    padding: 12px 16px;
+}
+
+.alert i {
+    margin-right: 8px;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+    color: #155724;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+    color: #721c24;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    border: none;
+    border-radius: 6px;
+    padding: 12px 24px;
+    font-weight: 500;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    width: 100%;
+    max-width: 300px;
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+.btn-primary i {
+    margin-right: 8px;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+</style>
+
+<style>
+.question-block {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.question-text {
+    color: #2c3e50;
+    font-weight: 500;
+    margin-bottom: 15px;
+}
+
+.form-control {
+    border: 2px solid #e9ecef;
+    border-radius: 4px;
+    padding: 12px 15px;
+    font-size: 1rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-control:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+
+.form-control[readonly] {
+    background-color: #e9ecef;
+    cursor: not-allowed;
+}
+
+.alert {
+    border-radius: 4px;
+    margin-top: 10px;
+    padding: 12px 15px;
+}
+
+.alert i {
+    margin-right: 8px;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+    color: #155724;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+    color: #721c24;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    border-color: #007bff;
+    padding: 12px 24px;
+    font-weight: 500;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;
+    border-color: #0056b3;
+    transform: translateY(-1px);
+}
+
+.btn-primary i {
+    margin-right: 8px;
+}
+</style>
+</div>
+
+<style>
+.question-block {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 1px solid #e9ecef;
+}
+
+.question-text {
+    font-size: 1.1em;
+    color: #2c3e50;
+    margin-bottom: 15px;
+    line-height: 1.5;
+}
+
+.list-group-item {
+    margin-bottom: 0.5rem;
+    border-radius: 4px !important;
+}
+
+.list-group-item-success {
+    background-color: #e8f5e9;
+    border-color: #4caf50;
+}
+
+.badge {
+    font-size: 0.8em;
+}
+
+.alert {
+    margin-top: 15px;
+    margin-bottom: 0;
+    border-radius: 6px;
+}
+
+@media (max-width: 768px) {
+    .question-block {
+        padding: 15px;
+    }
+
+    .question-text {
+        font-size: 1em;
+    }
+}
+</style>

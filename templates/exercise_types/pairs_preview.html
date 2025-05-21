@@ -1,0 +1,187 @@
+<div class="pairs-exercise">
+    <div class="row">
+        <div class="col-md-5">
+            <h4>Éléments à gauche</h4>
+            <div class="list-group" id="leftItems">
+                {% for pair in content.pairs %}
+                    <div class="list-group-item" 
+                         draggable="true"
+                         data-index="{{ loop.index0 }}"
+                         ondragstart="onDragStart(event)">
+                        {{ pair.first }}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="col-md-2 d-flex align-items-center justify-content-center">
+            <div class="arrows">
+                <i class="fas fa-arrows-alt-h fa-2x text-muted"></i>
+            </div>
+        </div>
+
+        <div class="col-md-5">
+            <h4>Éléments à droite</h4>
+            <div class="list-group" id="rightItems">
+                {% for pair in content.pairs %}
+                    <div class="list-group-item drop-zone"
+                         data-index="{{ loop.index0 }}"
+                         ondragover="onDragOver(event)"
+                         ondrop="onDrop(event)">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span>{{ pair.second }}</span>
+                            <span class="selected-item text-primary"></span>
+                        </div>
+                        <input type="hidden" name="pair_{{ loop.index0 }}" value="">
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    {% if not attempt %}
+        <div class="text-center mt-4">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-check"></i> Valider les associations
+            </button>
+        </div>
+    {% endif %}
+</div>
+
+<style>
+.pairs-exercise {
+    margin: 2rem 0;
+}
+
+.list-group-item {
+    margin-bottom: 0.5rem;
+    border-radius: 4px !important;
+    cursor: move;
+    transition: all 0.2s ease;
+}
+
+.list-group-item[draggable="true"]:hover {
+    background-color: #f8f9fa;
+    transform: translateY(-2px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.drop-zone {
+    border: 2px dashed #dee2e6;
+    background-color: #fff;
+    transition: all 0.2s ease;
+}
+
+.drop-zone.drag-over {
+    border-color: #007bff;
+    background-color: #f8f9fa;
+    transform: scale(1.02);
+}
+
+.drop-zone.has-item {
+    border-style: solid;
+    border-color: #28a745;
+    background-color: #e8f5e9;
+}
+
+.arrows {
+    padding: 1rem;
+    color: #6c757d;
+}
+
+.selected-item {
+    font-weight: 500;
+    color: #28a745;
+}
+
+@media (max-width: 768px) {
+    .pairs-exercise .row {
+        flex-direction: column;
+    }
+
+    .pairs-exercise .col-md-5 {
+        width: 100%;
+        margin-bottom: 1.5rem;
+    }
+
+    .pairs-exercise .arrows {
+        transform: rotate(90deg);
+        margin: 1rem 0;
+    }
+}
+</style>
+
+<script>
+function onDragStart(event) {
+    event.dataTransfer.setData('text/plain', event.target.dataset.index);
+    event.target.classList.add('text-muted');
+}
+
+function onDragOver(event) {
+    event.preventDefault();
+    const dropZone = event.target.closest('.drop-zone');
+    if (dropZone && !dropZone.classList.contains('has-item')) {
+        dropZone.classList.add('drag-over');
+    }
+}
+
+function onDragLeave(event) {
+    const dropZone = event.target.closest('.drop-zone');
+    if (dropZone) {
+        dropZone.classList.remove('drag-over');
+    }
+}
+
+function onDrop(event) {
+    event.preventDefault();
+    const dropZone = event.target.closest('.drop-zone');
+    if (!dropZone || dropZone.classList.contains('has-item')) return;
+
+    dropZone.classList.remove('drag-over');
+    const leftIndex = event.dataTransfer.getData('text/plain');
+    const rightIndex = dropZone.dataset.index;
+    const leftItem = document.querySelector(`#leftItems [data-index="${leftIndex}"]`);
+
+    // Mettre à jour l'affichage
+    dropZone.classList.add('has-item');
+    dropZone.querySelector('.selected-item').textContent = leftItem.textContent;
+    leftItem.classList.add('text-muted');
+
+    // Mettre à jour l'input caché
+    dropZone.querySelector('input[name="pair_' + rightIndex + '"]').value = leftIndex;
+
+    // Vérifier si toutes les paires sont complétées
+    const allPaired = Array.from(document.querySelectorAll('.drop-zone'))
+        .every(zone => zone.classList.contains('has-item'));
+    
+    if (allPaired) {
+        const submitBtn = document.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.classList.remove('btn-primary');
+            submitBtn.classList.add('btn-success');
+            submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> Valider les associations';
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialiser les événements de drag & drop
+    document.querySelectorAll('.drop-zone').forEach(zone => {
+        zone.addEventListener('dragover', onDragOver);
+        zone.addEventListener('dragleave', onDragLeave);
+        zone.addEventListener('drop', onDrop);
+    });
+
+    // Ajouter des attributs d'accessibilité
+    document.querySelectorAll('[draggable="true"]').forEach(item => {
+        item.setAttribute('role', 'button');
+        item.setAttribute('aria-grabbed', 'false');
+        item.setAttribute('tabindex', '0');
+    });
+
+    document.querySelectorAll('.drop-zone').forEach(zone => {
+        zone.setAttribute('role', 'region');
+        zone.setAttribute('aria-dropeffect', 'move');
+    });
+});
+</script>

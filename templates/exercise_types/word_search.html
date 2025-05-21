@@ -1,0 +1,389 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="exercise-header">
+    <div class="header-content">
+        <h2>{{ exercise.title }}</h2>
+        <p class="exercise-description">{{ exercise.description }}</p>
+    </div>
+    {% if current_user.is_teacher %}
+    <div class="header-actions">
+        <a href="{{ url_for('edit_exercise', exercise_id=exercise.id) }}" class="action-button edit">
+            <i class="fas fa-edit"></i> Modifier
+        </a>
+        <form method="POST" action="{{ url_for('delete_exercise', exercise_id=exercise.id) }}" class="d-inline" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cet exercice ?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <button type="submit" class="action-button delete">
+                <i class="fas fa-trash"></i> Supprimer
+            </button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+
+<div class="container mt-4">
+    <form method="POST" action="{{ url_for('submit_exercise_answer', exercise_id=exercise.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        {% if course %}
+        <input type="hidden" name="course_id" value="{{ course.id }}"/>
+        {% endif %}
+        
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-body">
+                        <h4>Grille de mots</h4>
+                        <div class="word-search-grid" id="wordSearchGrid">
+                            {% for row_index in range(content.grid|length) %}
+                            <div class="grid-row">
+                                {% for col_index in range(content.grid[row_index]|length) %}
+                                <div class="grid-cell" data-x="{{ col_index }}" data-y="{{ row_index }}">
+                                    {{ content.grid[row_index][col_index] }}
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h4>Mots à trouver</h4>
+                        <div class="word-list">
+                            {% for word in content.words %}
+                            <div class="word-item" id="word-{{ loop.index0 }}">
+                                <span class="word-text">{{ word }}</span>
+                                <input type="hidden" name="word_{{ loop.index0 }}" class="word-input">
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="text-center mt-4">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-check"></i> Valider mes réponses
+            </button>
+        </div>
+    </form>
+</div>
+
+<style>
+.word-search-grid {
+    display: inline-block;
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    user-select: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.grid-row {
+    display: flex;
+    justify-content: center;
+}
+
+.grid-cell {
+    width: 40px;
+    height: 40px;
+    border: 1px solid #dee2e6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2em;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin: 2px;
+    text-transform: uppercase;
+}
+
+.grid-cell:hover {
+    background-color: #e9ecef;
+    transform: scale(1.1);
+    z-index: 1;
+}
+
+.grid-cell.selected {
+    background-color: #cfe2ff;
+    border-color: #0d6efd;
+    transform: scale(1.1);
+    z-index: 2;
+}
+
+.grid-cell.highlighted {
+    background-color: #d1e7dd;
+    border-color: #198754;
+    animation: cellFound 0.5s ease;
+}
+
+.word-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.word-item {
+    padding: 8px 12px;
+    border-radius: 4px;
+    background: #f8f9fa;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: 1px solid transparent;
+}
+
+.word-item:hover {
+    border-color: #dee2e6;
+    transform: translateX(5px);
+}
+
+.word-item.found {
+    background-color: #d1e7dd;
+    color: #0a3622;
+    border-color: #198754;
+}
+
+.word-text {
+    font-size: 1.1em;
+    text-transform: uppercase;
+}
+
+@keyframes wordFound {
+    0% {
+        transform: translateX(0);
+        background-color: #f8f9fa;
+    }
+    50% {
+        transform: translateX(10px);
+        background-color: #d1e7dd;
+    }
+    100% {
+        transform: translateX(0);
+        background-color: #d1e7dd;
+    }
+}
+
+@keyframes cellFound {
+    0% {
+        transform: scale(1);
+        background-color: #cfe2ff;
+    }
+    50% {
+        transform: scale(1.2);
+        background-color: #d1e7dd;
+    }
+    100% {
+        transform: scale(1);
+        background-color: #d1e7dd;
+    }
+}
+
+@keyframes wrongSelection {
+    0% {
+        transform: scale(1);
+        background-color: #cfe2ff;
+    }
+    25% {
+        transform: scale(1.1);
+        background-color: #f8d7da;
+    }
+    100% {
+        transform: scale(1);
+        background-color: transparent;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const grid = document.getElementById('wordSearchGrid');
+    const cells = document.querySelectorAll('.grid-cell');
+    let isSelecting = false;
+    let selectedCells = [];
+    let startCell = null;
+    
+    // Fonction pour obtenir une cellule par ses coordonnées
+    function getCellAt(x, y) {
+        return grid.querySelector(`.grid-cell[data-x="${x}"][data-y="${y}"]`);
+    }
+    
+    // Fonction pour normaliser un mot (enlever les accents et mettre en majuscules)
+    function normalizeWord(word) {
+        return word.normalize('NFD')
+                   .replace(/[\u0300-\u036f]/g, '')
+                   .toUpperCase()
+                   .trim();
+    }
+
+    // Fonction pour obtenir le mot formé par les cellules sélectionnées
+    function getSelectedWord() {
+        return selectedCells.map(cell => cell.textContent.trim()).join('');
+    }
+    
+    // Fonction pour vérifier si un mot est dans la liste
+    function checkWord(word) {
+        const normalizedWord = normalizeWord(word);
+        const wordItems = document.querySelectorAll('.word-item');
+        
+        for (let item of wordItems) {
+            const wordText = item.querySelector('.word-text').textContent;
+            const normalizedWordText = normalizeWord(wordText);
+            
+            if (normalizedWordText === normalizedWord || 
+                normalizedWordText === normalizeWord(word.split('').reverse().join(''))) {
+                
+                if (!item.classList.contains('found')) {
+                    // Marquer le mot comme trouvé
+                    item.classList.add('found');
+                    
+                    // Ajouter une animation
+                    item.style.animation = 'wordFound 0.5s ease';
+                    
+                    // Sauvegarder les coordonnées du mot trouvé
+                    const coords = selectedCells.map(cell => ({
+                        x: parseInt(cell.dataset.x),
+                        y: parseInt(cell.dataset.y)
+                    }));
+                    item.querySelector('.word-input').value = JSON.stringify(coords);
+                    
+                    // Ajouter une icône de succès
+                    const checkIcon = document.createElement('i');
+                    checkIcon.className = 'fas fa-check ms-2 text-success';
+                    item.appendChild(checkIcon);
+                    
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+    
+    // Fonction pour obtenir la direction entre deux points
+    function getDirection(startX, startY, endX, endY) {
+        const dx = endX - startX;
+        const dy = endY - startY;
+        const distance = Math.max(Math.abs(dx), Math.abs(dy));
+        
+        if (distance === 0) return { dx: 0, dy: 0, steps: 0 };
+        
+        return {
+            dx: dx / distance,
+            dy: dy / distance,
+            steps: distance
+        };
+    }
+    
+    // Fonction pour mettre à jour la sélection entre deux cellules
+    function updateSelection(endCell) {
+        if (!startCell) return;
+        
+        // Réinitialiser la sélection précédente
+        selectedCells.forEach(cell => cell.classList.remove('selected'));
+        selectedCells = [];
+        
+        const startX = parseInt(startCell.dataset.x);
+        const startY = parseInt(startCell.dataset.y);
+        const endX = parseInt(endCell.dataset.x);
+        const endY = parseInt(endCell.dataset.y);
+        
+        // Obtenir la direction
+        const { dx, dy, steps } = getDirection(startX, startY, endX, endY);
+        
+        // Vérifier si la direction est valide (horizontale, verticale ou diagonale)
+        if (Math.abs(dx) > 1 || Math.abs(dy) > 1) return;
+        
+        // Sélectionner toutes les cellules le long de la ligne
+        for (let i = 0; i <= steps; i++) {
+            const x = Math.round(startX + dx * i);
+            const y = Math.round(startY + dy * i);
+            const cell = getCellAt(x, y);
+            
+            if (cell) {
+                cell.classList.add('selected');
+                selectedCells.push(cell);
+            }
+        }
+    }
+    
+    // Gestionnaires d'événements pour la sélection
+    cells.forEach(cell => {
+        // Désactiver le comportement de glissement par défaut
+        cell.addEventListener('dragstart', (e) => e.preventDefault());
+        
+        cell.addEventListener('mousedown', (e) => {
+            e.preventDefault(); // Empêcher la sélection de texte
+            isSelecting = true;
+            startCell = cell;
+            updateSelection(cell);
+        });
+        
+        cell.addEventListener('mousemove', (e) => {
+            if (isSelecting) {
+                e.preventDefault();
+                updateSelection(cell);
+            }
+        });
+    });
+    
+    // Gestionnaire pour la fin de sélection
+    document.addEventListener('mouseup', () => {
+        if (isSelecting) {
+            isSelecting = false;
+            const word = getSelectedWord();
+            
+            if (checkWord(word)) {
+                // Effet de succès sur les cellules
+                selectedCells.forEach(cell => {
+                    cell.classList.remove('selected');
+                    cell.classList.add('highlighted');
+                    
+                    // Animation de succès
+                    cell.style.animation = 'none';
+                    cell.offsetHeight; // Forcer le reflow
+                    cell.style.animation = 'cellFound 0.5s ease';
+                });
+                
+                // Vérifier si tous les mots sont trouvés
+                const allWords = document.querySelectorAll('.word-item');
+                const foundWords = document.querySelectorAll('.word-item.found');
+                if (allWords.length === foundWords.length) {
+                    // Animation de succès finale
+                    setTimeout(() => {
+                        const grid = document.querySelector('.word-search-grid');
+                        grid.style.animation = 'wordFound 1s ease';
+                    }, 500);
+                }
+            } else {
+                // Animation d'échec sur les cellules
+                selectedCells.forEach(cell => {
+                    cell.classList.remove('selected');
+                    cell.style.animation = 'none';
+                    cell.offsetHeight; // Forcer le reflow
+                    cell.style.animation = 'wrongSelection 0.3s ease';
+                });
+            }
+            
+            selectedCells = [];
+            startCell = null;
+        }
+    });
+    
+    // Gestionnaire pour annuler la sélection si on sort de la grille
+    document.addEventListener('mouseleave', (e) => {
+        if (isSelecting && !e.relatedTarget?.closest('.word-search-grid')) {
+            isSelecting = false;
+            selectedCells.forEach(cell => cell.classList.remove('selected'));
+            selectedCells = [];
+            startCell = null;
+        }
+    });
+});
+</script>
+{% endblock %}

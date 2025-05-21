@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Mes Classes{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Mes Classes</h1>
+        <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#createClassModal">
+            <i class="bi bi-plus-circle"></i> Créer une classe
+        </button>
+    </div>
+
+    {% if classes %}
+    <div class="row">
+        {% for class in classes %}
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">{{ class.name }}</h5>
+                    <p class="card-text">
+                        <small class="text-muted">{{ class.students|length }} élèves</small><br>
+                        <small class="text-muted">Code: {{ class.join_code }}</small>
+                    </p>
+                    <div class="btn-group">
+                        <a href="{{ url_for('view_class', class_id=class.id) }}" class="btn btn-primary">
+                            <i class="bi bi-eye"></i> Voir
+                        </a>
+                        <button type="button" class="btn btn-danger" onclick="confirmDelete({{ class.id }})">
+                            <i class="bi bi-trash"></i> Supprimer
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        Vous n'avez pas encore créé de classe. Cliquez sur le bouton "Créer une classe" pour commencer.
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal Création de classe -->
+<div class="modal fade" id="createClassModal" tabindex="-1" aria-labelledby="createClassModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createClassModalLabel">Créer une nouvelle classe</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('create_class') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="className" class="form-label">Nom de la classe</label>
+                        <input type="text" class="form-control" id="className" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="classDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="classDescription" name="description" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Créer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+<script>
+function confirmDelete(classId) {
+    if (confirm('Êtes-vous sûr de vouloir supprimer cette classe ? Cette action est irréversible.')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `{{ url_for('delete_class', class_id=0) }}`.replace('0', classId);
+
+        // Ajouter le token CSRF
+        const csrfToken = document.createElement('input');
+        csrfToken.type = 'hidden';
+        csrfToken.name = 'csrf_token';
+        csrfToken.value = '{{ csrf_token() }}';
+        form.appendChild(csrfToken);
+
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
+{% endblock %}
+{% endblock %}

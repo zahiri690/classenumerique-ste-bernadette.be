@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h2 class="mb-4">Bibliothèque d'exercices</h2>
+
+            <!-- Filtres -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form method="GET" action="{{ url_for('exercise.exercise_library') }}" class="row g-3">
+                        <div class="col-md-4">
+                            <div class="input-group">
+                                <input type="text" 
+                                       class="form-control" 
+                                       name="search" 
+                                       placeholder="Rechercher un exercice..."
+                                       value="{{ search_query }}">
+                                <button class="btn btn-outline-secondary" type="submit">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select" name="type">
+                                <option value="">Tous les types</option>
+                                {% for type_id, type_name in exercise_types %}
+                                    <option value="{{ type_id }}" {% if type_id == selected_type %}selected{% endif %}>
+                                        {{ type_name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select" name="subject">
+                                <option value="">Toutes les matières</option>
+                                <option value="math" {% if selected_subject == 'math' %}selected{% endif %}>Mathématiques</option>
+                                <option value="french" {% if selected_subject == 'french' %}selected{% endif %}>Français</option>
+                                <option value="history" {% if selected_subject == 'history' %}selected{% endif %}>Histoire</option>
+                                <option value="geography" {% if selected_subject == 'geography' %}selected{% endif %}>Géographie</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-filter"></i> Filtrer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Liste des exercices -->
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                {% for exercise in exercises %}
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ exercise.title }}</h5>
+                                {% if exercise.description %}
+                                    <p class="card-text">{{ exercise.description }}</p>
+                                {% endif %}
+                                <div class="d-flex align-items-center mb-3">
+                                    <span class="badge bg-primary me-2">
+                                        {% if exercise.exercise_type == 'qcm' %}
+                                            <i class="fas fa-tasks"></i> QCM
+                                        {% elif exercise.exercise_type == 'word_search' %}
+                                            <i class="fas fa-search"></i> Mots mêlés
+                                        {% elif exercise.exercise_type == 'pairs' %}
+                                            <i class="fas fa-link"></i> Paires
+                                        {% elif exercise.exercise_type == 'fill_in_blanks' %}
+                                            <i class="fas fa-pencil-alt"></i> Texte à trous
+                                        {% elif exercise.exercise_type == 'file' %}
+                                            <i class="fas fa-file"></i> Fichier
+                                        {% endif %}
+                                    </span>
+                                    {% if exercise.subject %}
+                                        <span class="badge bg-secondary">{{ exercise.subject }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="card-footer bg-transparent">
+                                <div class="d-flex gap-2">
+                                    <a href="{{ url_for('exercise.view_exercise', exercise_id=exercise.id) }}" 
+                                       class="btn btn-outline-primary flex-grow-1">
+                                        <i class="fas fa-eye"></i> Voir
+                                    </a>
+                                    {% if current_user.is_teacher and exercise.teacher_id == current_user.id %}
+                                        <a href="{{ url_for('exercise.edit_exercise', exercise_id=exercise.id) }}" class="btn btn-outline-secondary">
+                                            <i class="fas fa-edit"></i> Éditer
+                                        </a>
+                                    {% endif %}
+                                    {% if current_user.is_teacher %}
+                                        <div class="dropdown">
+                                            <button class="btn btn-outline-primary dropdown-toggle" type="button" id="addToClassDropdown{{ exercise.id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                                <i class="fas fa-plus"></i> Ajouter à une classe
+                                            </button>
+                                            <ul class="dropdown-menu" aria-labelledby="addToClassDropdown{{ exercise.id }}">
+                                                {% for class in current_user.classes_teaching %}
+                                                    <li>
+                                                        <form action="{{ url_for('add_exercise_to_class', class_id=class.id, exercise_id=exercise.id) }}" method="POST" style="display: inline;">
+                                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                            <button type="submit" class="dropdown-item" onclick="this.disabled=true; this.form.submit();">
+                                                                {{ class.name }}
+                                                                <small class="text-muted">({{ class.students|length }} élèves)</small>
+                                                            </button>
+                                                        </form>
+                                                    </li>
+                                                {% else %}
+                                                    <li><span class="dropdown-item disabled">Aucune classe disponible</span></li>
+                                                {% endfor %}
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li>
+                                                    <a class="dropdown-item" href="{{ url_for('create_class') }}">
+                                                        <i class="fas fa-plus-circle"></i> Créer une nouvelle classe
+                                                    </a>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="col-12">
+                        <div class="alert alert-info">
+                            Aucun exercice trouvé. {% if current_user.is_teacher %}<a href="{{ url_for('create_exercise') }}">Créer un exercice</a>{% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            {% if current_user.is_teacher %}
+                <div class="text-center mt-4">
+                    <a href="{{ url_for('create_exercise') }}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-plus"></i> Créer un nouvel exercice
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

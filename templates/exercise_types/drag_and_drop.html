@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <h2>{{ exercise.title }}</h2>
+            <p class="lead">{{ exercise.description }}</p>
+        </div>
+        {% if current_user.is_teacher %}
+        <div class="btn-group">
+            <a href="{{ url_for('edit_exercise', exercise_id=exercise.id) }}" class="btn btn-outline-primary">
+                <i class="fas fa-edit"></i> Modifier
+            </a>
+            <form method="POST" action="{{ url_for('delete_exercise', exercise_id=exercise.id) }}" class="d-inline" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cet exercice ?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button type="submit" class="btn btn-outline-danger">
+                    <i class="fas fa-trash"></i> Supprimer
+                </button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+
+    <form method="POST" action="{{ url_for('submit_exercise_answer', exercise_id=exercise.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        {% if course %}
+        <input type="hidden" name="course_id" value="{{ course.id }}"/>
+        {% endif %}
+        
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <h4>Éléments à placer</h4>
+                <div class="draggable-container" id="draggable-items">
+                    {% for item in content.draggable_items %}
+                        <div class="card mb-2 draggable" draggable="true" data-index="{{ loop.index0 }}">
+                            <div class="card-body d-flex align-items-center">
+                                <i class="fas fa-grip-vertical me-2 text-muted"></i>
+                                <span>{{ item }}</span>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <h4>Zones de dépôt</h4>
+                <div class="droppable-container">
+                    {% for i in range(content.draggable_items|length) %}
+                        <div class="card mb-2 droppable" data-position="{{ loop.index0 }}">
+                            <div class="card-body">
+                                <div class="drop-placeholder">Déposez ici le {{ loop.index }}e nombre</div>
+                                <input type="hidden" name="answer_{{ loop.index0 }}" class="drop-input">
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-check"></i> Valider mes réponses
+        </button>
+    </form>
+</div>
+
+<style>
+.draggable-container {
+    min-height: 50px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 5px;
+}
+
+.draggable {
+    cursor: grab;
+    user-select: none;
+    background: white;
+    margin-bottom: 8px;
+    transition: all 0.2s;
+}
+
+.draggable:last-child {
+    margin-bottom: 0;
+}
+
+.draggable:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.draggable.dragging {
+    opacity: 0.5;
+    cursor: grabbing;
+}
+
+.droppable {
+    min-height: 80px;
+    border: 2px dashed #dee2e6;
+    background: white;
+    transition: all 0.2s;
+}
+
+.droppable.drag-over {
+    border-color: #0d6efd;
+    border-style: solid;
+    background-color: #f8f9fa;
+}
+
+.droppable .drop-placeholder {
+    color: #6c757d;
+    text-align: center;
+    padding: 10px;
+}
+
+.droppable.has-item .drop-placeholder {
+    display: none;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const draggables = document.querySelectorAll('.draggable');
+    const droppables = document.querySelectorAll('.droppable');
+    let draggedItem = null;
+    
+    // Fonction pour réinitialiser les styles des zones de dépôt
+    function resetDropzones() {
+        droppables.forEach(zone => {
+            zone.classList.remove('drag-over');
+        });
+    }
+    
+    // Fonction pour vérifier si une zone contient déjà un élément
+    function hasItem(zone) {
+        return zone.querySelector('.draggable') !== null;
+    }
+    
+    // Fonction pour mettre à jour les classes des zones
+    function updateZoneClasses() {
+        droppables.forEach(zone => {
+            zone.classList.toggle('has-item', hasItem(zone));
+        });
+    }
+    
+    draggables.forEach(draggable => {
+        draggable.addEventListener('dragstart', (e) => {
+            draggedItem = draggable;
+            draggable.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', draggable.dataset.index);
+        });
+        
+        draggable.addEventListener('dragend', () => {
+            draggable.classList.remove('dragging');
+            draggedItem = null;
+            resetDropzones();
+            updateZoneClasses();
+        });
+    });
+    
+    droppables.forEach(droppable => {
+        droppable.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            droppable.classList.add('drag-over');
+            e.dataTransfer.dropEffect = 'move';
+        });
+        
+        droppable.addEventListener('dragleave', (e) => {
+            if (!droppable.contains(e.relatedTarget)) {
+                droppable.classList.remove('drag-over');
+            }
+        });
+        
+        droppable.addEventListener('drop', (e) => {
+            e.preventDefault();
+            resetDropzones();
+            
+            if (!draggedItem) return;
+            
+            // Gérer l'échange d'éléments
+            const existingItem = droppable.querySelector('.draggable');
+            const originalContainer = draggedItem.parentElement;
+            const dropInput = droppable.querySelector('.drop-input');
+            
+            if (existingItem) {
+                // Si la zone contient déjà un élément, on les échange
+                originalContainer.appendChild(existingItem);
+            }
+            
+            // Déplacer l'élément dans la zone de dépôt
+            droppable.querySelector('.card-body').appendChild(draggedItem);
+            dropInput.value = draggedItem.dataset.index;
+            
+            updateZoneClasses();
+        });
+    });
+    
+    // État initial
+    updateZoneClasses();
+});
+</script>
+{% endblock %}

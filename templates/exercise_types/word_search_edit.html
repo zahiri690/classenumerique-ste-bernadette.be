@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>{% if exercise %}Modifier{% else %}Créer{% endif %} un exercice de mots mêlés</h2>
+
+    <form method="POST" class="mt-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        
+        <div class="mb-3">
+            <label for="title" class="form-label">Titre</label>
+            <input type="text" class="form-control" id="title" name="title" value="{{ exercise.title if exercise else '' }}" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="description" class="form-label">Description</label>
+            <textarea class="form-control" id="description" name="description" rows="3" required>{{ exercise.description if exercise else '' }}</textarea>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Mots à trouver</label>
+            <div id="words-container">
+                {% if exercise and exercise.content %}
+                    {% for word in exercise.content.words %}
+                        <div class="input-group mb-2 word-input">
+                            <input type="text" class="form-control" name="words[]" value="{{ word }}" required>
+                            <button type="button" class="btn btn-outline-danger remove-word">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="input-group mb-2 word-input">
+                        <input type="text" class="form-control" name="words[]" required>
+                        <button type="button" class="btn btn-outline-danger remove-word">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                {% endif %}
+            </div>
+            <button type="button" class="btn btn-outline-primary" id="add-word">
+                <i class="fas fa-plus"></i> Ajouter un mot
+            </button>
+        </div>
+
+        <div class="mb-3">
+            <label for="grid-size" class="form-label">Taille de la grille</label>
+            <select class="form-select" id="grid-size" name="grid_size" required>
+                {% for size in range(8, 21) %}
+                    <option value="{{ size }}" {% if exercise and exercise.content and exercise.content.grid|length == size %}selected{% endif %}>
+                        {{ size }}x{{ size }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label for="difficulty" class="form-label">Difficulté</label>
+            <select class="form-select" id="difficulty" name="difficulty" required>
+                <option value="easy" {% if exercise and exercise.difficulty == 'easy' %}selected{% endif %}>Facile</option>
+                <option value="medium" {% if exercise and exercise.difficulty == 'medium' %}selected{% endif %}>Moyen</option>
+                <option value="hard" {% if exercise and exercise.difficulty == 'hard' %}selected{% endif %}>Difficile</option>
+            </select>
+        </div>
+
+        {% if courses %}
+        <div class="mb-3">
+            <label for="course" class="form-label">Cours</label>
+            <select class="form-select" id="course" name="course_id">
+                <option value="">Aucun cours</option>
+                {% for course in courses %}
+                    <option value="{{ course.id }}" {% if exercise and exercise.course_id == course.id %}selected{% endif %}>
+                        {{ course.title }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save"></i> Enregistrer
+        </button>
+        <a href="{{ url_for('exercise_library') }}" class="btn btn-secondary">
+            <i class="fas fa-times"></i> Annuler
+        </a>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const container = document.getElementById('words-container');
+    const addButton = document.getElementById('add-word');
+
+    function createWordInput() {
+        const div = document.createElement('div');
+        div.className = 'input-group mb-2 word-input';
+        div.innerHTML = `
+            <input type="text" class="form-control" name="words[]" required>
+            <button type="button" class="btn btn-outline-danger remove-word">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        return div;
+    }
+
+    addButton.addEventListener('click', function() {
+        const newInput = createWordInput();
+        container.appendChild(newInput);
+    });
+
+    container.addEventListener('click', function(e) {
+        if (e.target.classList.contains('remove-word') || e.target.closest('.remove-word')) {
+            const wordInput = e.target.closest('.word-input');
+            if (container.children.length > 1) {
+                wordInput.remove();
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}{{ exercise.title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header bg-white">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="h4 mb-0">{{ exercise.title }}</h2>
+                    {% if exercise.description %}
+                        <p class="text-muted small mb-0">{{ exercise.description }}</p>
+                    {% endif %}
+                </div>
+                {% if current_user.is_teacher and current_user.id == exercise.teacher_id %}
+                <div class="btn-group">
+                    <a href="{{ url_for('exercise.edit_exercise', exercise_id=exercise.id) }}" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-pencil"></i> Modifier
+                    </a>
+                    <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteExerciseModal">
+                        <i class="bi bi-trash"></i> Supprimer
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('exercise.submit_answer', exercise_id=exercise.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                
+                {% if content and content.phrases %}
+                    {% for phrase in content.phrases %}
+                        <div class="mb-4">
+                            <div class="d-flex align-items-center mb-2">
+                                <span class="badge bg-primary me-2">{{ loop.index }}</span>
+                                <p class="mb-0 lead">{{ phrase.text }}</p>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light">Réponse</span>
+                                        <input type="text" 
+                                               class="form-control" 
+                                               name="answer_{{ loop.index0 }}" 
+                                               required 
+                                               placeholder="Écrivez le mot qui va dans le trou ___"
+                                               {% if attempt %}value="{{ attempt.get_answers().get('answer_' ~ loop.index0, '') }}"{% endif %}>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                    
+                    <div class="text-center mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Soumettre mes réponses
+                        </button>
+                    </div>
+                {% else %}
+                    <div class="alert alert-warning d-flex align-items-center">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <div>Cet exercice ne contient pas encore de phrases.</div>
+                    </div>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+<!-- Modal de confirmation de suppression -->
+{% if current_user.is_teacher and current_user.id == exercise.teacher_id %}
+<div class="modal fade" id="deleteExerciseModal" tabindex="-1" aria-labelledby="deleteExerciseModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteExerciseModalLabel">Confirmer la suppression</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Êtes-vous sûr de vouloir supprimer cet exercice ? Cette action est irréversible.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form method="POST" action="{{ url_for('exercise.delete_exercise', exercise_id=exercise.id) }}" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Supprimer
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

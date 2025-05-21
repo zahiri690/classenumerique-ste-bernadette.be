@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <div class="alert alert-warning">
+        <h4 class="alert-heading">Exercice non trouvé</h4>
+        <p>Désolé, le type d'exercice demandé n'est pas disponible ou n'existe pas.</p>
+    </div>
+    
+    <div class="mt-3">
+        <a href="{{ url_for('exercise_library') }}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left"></i> Retour à la bibliothèque
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <h2>{{ exercise.title }}</h2>
+            {% if exercise.description %}
+                <p class="lead">{{ exercise.description }}</p>
+            {% endif %}
+        </div>
+        {% if current_user.is_teacher %}
+        <div class="btn-group">
+            <a href="{{ url_for('exercise.edit_exercise', exercise_id=exercise.id) }}" class="btn btn-outline-primary">
+                <i class="fas fa-edit"></i> Modifier
+            </a>
+            <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteExerciseModal">
+                <i class="fas fa-trash"></i> Supprimer
+            </button>
+        </div>
+
+        <!-- Modal de confirmation de suppression -->
+        <div class="modal fade" id="deleteExerciseModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title">
+                            <i class="fas fa-exclamation-triangle"></i> Confirmer la suppression
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body text-center py-4">
+                        <p class="mb-0">
+                            <strong>Êtes-vous sûr de vouloir supprimer cet exercice ?</strong><br>
+                            Cette action est irréversible.
+                        </p>
+                    </div>
+                    <div class="modal-footer justify-content-center border-0 pt-0">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times"></i> Annuler
+                        </button>
+                        <form action="{{ url_for('exercise.delete_exercise', exercise_id=exercise.id) }}" method="POST" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash"></i> Supprimer
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if not content or not content.questions %}
+    <div class="alert alert-info">
+        <h4 class="alert-heading">Exercice vide</h4>
+        <p>Aucune question n'a été ajoutée à cet exercice.</p>
+        {% if current_user.is_teacher %}
+        <hr>
+        <p class="mb-0">
+            <a href="{{ url_for('exercise.edit_exercise', exercise_id=exercise.id) }}" class="btn btn-primary">
+                <i class="fas fa-edit"></i> Ajouter des questions
+            </a>
+        </p>
+        {% endif %}
+    </div>
+    {% else %}
+    <form method="POST" action="{{ url_for('exercise.submit_answer', exercise_id=exercise.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        
+        {% for question in content.questions %}
+            {% set question_index = loop.index0 %}
+            <div class="card mb-4 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Question {{ loop.index }}</h5>
+                    <p class="card-text">{{ question.text }}</p>
+                    
+                    <div class="list-group mt-3">
+                        {% for option in question.options %}
+                            <label class="list-group-item list-group-item-action d-flex align-items-center gap-3 py-3">
+                                <input class="form-check-input flex-shrink-0" type="radio" name="answer[{{ question_index }}]" value="{{ loop.index0 }}" required {% if attempt and attempt.answers and attempt.answers[question_index] == loop.index0 %}checked{% endif %}>
+                                <span class="flex-grow-1">{{ option }}</span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+        
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-check"></i> Valider mes réponses
+        </button>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

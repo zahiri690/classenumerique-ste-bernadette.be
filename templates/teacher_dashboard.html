@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Tableau de bord - Enseignant{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Tableau de bord enseignant</h1>
+    
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Actions rapides</h5>
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('create_class') }}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Créer une nouvelle classe
+                        </a>
+                        <a href="{{ url_for('exercise_library') }}" class="btn btn-success">
+                            <i class="fas fa-book"></i> Accéder à la bibliothèque d'exercices
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Statistiques</h5>
+                    <p>Nombre de classes : {{ classes|length }}</p>
+                    {% if classes %}
+                    <p>Nombre total d'élèves : {{ total_students }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-body">
+            <h5 class="card-title">Mes classes</h5>
+            {% if classes %}
+            <div class="list-group">
+                {% for class in classes %}
+                <div class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-1">{{ class.name }}</h5>
+                            <p class="mb-1 text-muted">{{ class.description }}</p>
+                            <div class="mt-2">
+                                <a href="{{ url_for('view_class', class_id=class.id) }}" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-eye"></i> Voir la classe
+                                </a>
+                                <a href="{{ url_for('edit_class', class_id=class.id) }}" class="btn btn-sm btn-secondary">
+                                    <i class="fas fa-edit"></i> Modifier
+                                </a>
+                                <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ class.id }}">
+                                    <i class="fas fa-trash"></i> Supprimer
+                                </button>
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-primary rounded-pill">{{ class.students|length }} élèves</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal de confirmation de suppression pour chaque classe -->
+                <div class="modal fade" id="deleteModal{{ class.id }}" tabindex="-1" role="dialog" aria-labelledby="deleteModalLabel{{ class.id }}" aria-hidden="true">
+                    <div class="modal-dialog" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="deleteModalLabel{{ class.id }}">
+                                    <i class="fas fa-exclamation-triangle text-danger me-2"></i>Confirmer la suppression
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                            </div>
+                            <div class="modal-body text-center">
+                                <p class="mb-4">Êtes-vous sûr de vouloir supprimer la classe <strong>{{ class.name }}</strong> ?</p>
+                                <p class="text-muted small">Cette action est irréversible.</p>
+                                <form action="{{ url_for('delete_class', class_id=class.id) }}" method="POST" class="mt-4">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <div class="d-flex justify-content-center gap-3">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                            <i class="fas fa-times me-2"></i>Annuler
+                                        </button>
+                                        <button type="submit" class="btn btn-danger">
+                                            <i class="fas fa-trash me-2"></i>Supprimer définitivement
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p>Vous n'avez pas encore créé de classe.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

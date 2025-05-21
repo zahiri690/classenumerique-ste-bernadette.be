@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .exercise-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    .exercise-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 2.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    .header-content {
+        flex: 1;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 0.5rem;
+        margin-left: 2rem;
+    }
+
+    .action-button {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        font-weight: 500;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        border: 2px solid transparent;
+        background: none;
+        cursor: pointer;
+        font-size: 0.9rem;
+    }
+
+    .action-button i {
+        margin-right: 0.5rem;
+    }
+
+    .action-button.edit {
+        color: #2196f3;
+        border-color: #2196f3;
+    }
+
+    .action-button.edit:hover {
+        background-color: #2196f3;
+        color: white;
+    }
+
+    .action-button.delete {
+        color: #dc3545;
+        border-color: #dc3545;
+    }
+
+    .action-button.delete:hover {
+        background-color: #dc3545;
+        color: white;
+    }
+
+    .sentences-container {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .sentence {
+        font-size: 1.1rem;
+        line-height: 1.6;
+        padding: 1rem;
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .word {
+        display: inline-block;
+        padding: 0 2px;
+        border-radius: 3px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .word:hover {
+        background-color: rgba(33, 150, 243, 0.1);
+    }
+
+    .word.selected {
+        background-color: #2196f3;
+        color: white;
+    }
+
+    .word.correct {
+        background-color: #4caf50;
+        color: white;
+    }
+
+    .word.incorrect {
+        background-color: #f44336;
+        color: white;
+    }
+
+    .instructions {
+        background-color: #e3f2fd;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+        color: #1976d2;
+    }
+
+    .instructions i {
+        margin-right: 0.5rem;
+    }
+
+    .submit-button {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.75rem 1.5rem;
+        font-size: 1rem;
+        font-weight: 500;
+        color: white;
+        background-color: #2196f3;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .submit-button:hover {
+        background-color: #1976d2;
+    }
+
+    .submit-button i {
+        margin-right: 0.5rem;
+    }
+</style>
+
+<div class="exercise-container">
+    <div class="exercise-header">
+        <div class="header-content">
+            <h2>{{ exercise.title }}</h2>
+            <p class="exercise-description">{{ exercise.description }}</p>
+            {% if not content or not content.sentences %}
+            <div class="alert alert-info">
+                Aucune phrase n'a été ajoutée à cet exercice. 
+                <a href="{{ url_for('edit_exercise', exercise_id=exercise.id) }}" class="btn btn-primary btn-sm">Modifier l'exercice</a>
+            </div>
+            {% endif %}
+        </div>
+        {% if current_user.is_teacher %}
+        <div class="header-actions">
+            <a href="{{ url_for('edit_exercise', exercise_id=exercise.id) }}" class="action-button edit">
+                <i class="fas fa-edit"></i> Modifier
+            </a>
+            <form method="POST" action="{{ url_for('delete_exercise', exercise_id=exercise.id) }}" class="d-inline" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cet exercice ?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button type="submit" class="action-button delete">
+                    <i class="fas fa-trash"></i> Supprimer
+                </button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="instructions">
+        <i class="fas fa-info-circle"></i>
+        Cliquez sur les mots à souligner dans les phrases ci-dessous.
+    </div>
+
+    <form method="POST" action="{{ url_for('submit_exercise_answer', exercise_id=exercise.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        {% if course %}
+        <input type="hidden" name="course_id" value="{{ course.id }}"/>
+        {% endif %}
+
+        <div class="sentences-container">
+            {% for sentence in content.sentences %}
+    {% set sentence_idx = loop.index0 %}
+    <div class="sentence" data-sentence-id="{{ sentence_idx }}">
+        {% for word in sentence.words %}
+        {% if '.' in word %}
+            {% set outer_loop = loop %}
+            {% set parts = word.split('.') %}
+            {% for part in parts %}
+                {% if not loop.last %}
+                <span class="word number-part" 
+                      data-word-id="{{ outer_loop.index0 }}-{{ loop.index0 }}"
+                      data-sentence-word-id="{{ sentence_idx }}-{{ outer_loop.index0 }}-{{ loop.index0 }}">
+                    {{ part }}.
+                </span>
+                {% else %}
+                <span class="word number-part"
+                      data-word-id="{{ outer_loop.index0 }}-{{ loop.index0 }}"
+                      data-sentence-word-id="{{ sentence_idx }}-{{ outer_loop.index0 }}-{{ loop.index0 }}">
+                    {{ part }}
+                </span>
+                {% endif %}
+            {% endfor %}
+        {% else %}
+            <span class="word" 
+                  data-word-id="{{ loop.index0 }}"
+                  data-sentence-word-id="{{ sentence_idx }}-{{ loop.index0 }}">
+                {{ word }}
+            </span>
+        {% endif %}
+        {% endfor %}
+        <input type="hidden" name="selected_words_{{ sentence_idx }}" id="selected_words_{{ sentence_idx }}" value="">
+    </div>
+{% endfor %}
+        </div>
+
+        <button type="submit" class="submit-button">
+            <i class="fas fa-check"></i>
+            Vérifier mes réponses
+        </button>
+    </form>
+</div>
+
+<script>
+let selectedWords = {};
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.word').forEach(function(wordEl) {
+        wordEl.addEventListener('click', function(e) {
+            const sentenceId = this.closest('.sentence').getAttribute('data-sentence-id');
+            const wordId = this.getAttribute('data-word-id');
+            toggleWord(this, sentenceId, wordId);
+        });
+    });
+    {% if previous_answers %}
+        const previousAnswers = {{ previous_answers|tojson|safe }};
+        for (const [sentenceId, words] of Object.entries(previousAnswers)) {
+            words.forEach(word => {
+                // Trouver l'élément exact par son identifiant unique
+                const element = document.querySelector(
+                    `.sentence[data-sentence-id="${sentenceId}"] .word[data-sentence-word-id="${sentenceId}-${word}"]`
+                );
+                if (element) {
+                    toggleWord(element, parseInt(sentenceId), parseInt(element.getAttribute('data-word-id')));
+                }
+            });
+        }
+    {% endif %}
+});
+
+function toggleWord(element, sentenceId, wordId) {
+    // Initialiser le tableau pour cette phrase si nécessaire
+    if (!selectedWords[sentenceId]) {
+        selectedWords[sentenceId] = [];
+    }
+
+    // Toggle la sélection
+    element.classList.toggle('selected');
+    
+    // Récupérer le mot et son identifiant unique
+    const word = element.textContent.trim();
+    const uniqueId = element.getAttribute('data-sentence-word-id');
+    
+    // Si c'est un nombre (contient un point), on gère la sélection spéciale
+    if (element.classList.contains('number-part')) {
+        // Désélectionner les autres parties du même nombre si elles sont sélectionnées
+        const parts = document.querySelectorAll(`.number-part[data-sentence-word-id^="${sentenceId}-"]`);
+        parts.forEach(part => {
+            if (part !== element && part.classList.contains('selected')) {
+                part.classList.remove('selected');
+                const partWord = part.textContent.trim();
+                const partIndex = selectedWords[sentenceId].indexOf(partWord);
+                if (partIndex !== -1) {
+                    selectedWords[sentenceId].splice(partIndex, 1);
+                }
+            }
+        });
+    }
+    
+    // Mettre à jour le tableau des mots sélectionnés
+    const index = selectedWords[sentenceId].indexOf(word);
+    if (index === -1) {
+        selectedWords[sentenceId].push(word);
+    } else {
+        selectedWords[sentenceId].splice(index, 1);
+    }
+
+    // Mettre à jour le champ caché
+    document.getElementById(`selected_words_${sentenceId}`).value = 
+        selectedWords[sentenceId].join(',');
+
+    console.log(`Phrase ${sentenceId}, mots sélectionnés:`, selectedWords[sentenceId]);
+}
+
+
+</script>
+{% endblock %}

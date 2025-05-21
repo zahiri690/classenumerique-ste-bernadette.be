@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Créer un cours{% endblock %}
+
+{% block head %}
+<!-- Inclure CKEditor -->
+<script src="https://cdn.ckeditor.com/ckeditor5/38.0.1/classic/ckeditor.js"></script>
+<style>
+    .ck-editor__editable {
+        min-height: 400px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('view_classes') }}">Mes Classes</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('view_class', class_id=class_.id) }}">{{ class_.name }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Créer un cours</li>
+        </ol>
+    </nav>
+
+    <div class="card">
+        <div class="card-body">
+            <h2 class="card-title">Créer un nouveau cours</h2>
+            <form method="POST" action="{{ url_for('create_course', class_id=class_.id) }}" id="courseForm">
+                {{ form.csrf_token }}
+                
+                <div class="mb-3">
+                    <label for="title" class="form-label">Titre du cours</label>
+                    <input type="text" class="form-control" id="title" name="title" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="editor" class="form-label">Contenu du cours</label>
+                    <div id="editor"></div>
+                    <input type="hidden" id="content" name="content">
+                    <small class="form-text text-muted">Utilisez l'éditeur pour ajouter du texte formaté, des images, des liens et des fichiers.</small>
+                </div>
+
+                <script>
+                    ClassicEditor
+                        .create(document.querySelector('#editor'), {
+                            toolbar: ['heading', '|', 'bold', 'italic', 'link', 'bulletedList', 'numberedList', '|', 'outdent', 'indent', '|', 'imageUpload', 'blockQuote', 'insertTable', 'undo', 'redo'],
+                            simpleUpload: {
+                                uploadUrl: '{{ url_for("upload_image") }}',
+                                headers: {
+                                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                }
+                            },
+                            image: {
+                                upload: {
+                                    types: ['jpeg', 'png', 'gif', 'bmp', 'webp', 'tiff']
+                                },
+                                resizeUnit: 'px'
+                            }
+                        })
+                        .then(editor => {
+                            console.log('Editor initialized');
+                            window.editor = editor;
+                            
+                            // Mettre à jour le champ caché à chaque changement
+                            editor.model.document.on('change:data', () => {
+                                document.getElementById('content').value = editor.getData();
+                            });
+                        })
+                        .catch(error => {
+                            console.error('Editor error:', error);
+                        });
+                </script>
+
+                <div class="mb-3">
+                    <label for="exercise" class="form-label">Exercice associé (optionnel)</label>
+                    {{ form.exercise_id(class="form-select", id="exercise") }}
+                    {% if form.exercise_id.errors %}
+                    <div class="text-danger">
+                        {% for error in form.exercise_id.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('view_class', class_id=class_.id) }}" class="btn btn-secondary">Annuler</a>
+                    <button type="submit" class="btn btn-primary">Créer le cours</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

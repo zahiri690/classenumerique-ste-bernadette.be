@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Confirmer la suppression{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h2>Confirmer la suppression</h2>
+        </div>
+        <div class="card-body">
+            <p>Êtes-vous sûr de vouloir retirer l'étudiant <strong>{{ student.name }}</strong> de la classe <strong>{{ class_obj.name }}</strong> ?</p>
+            
+            <form action="{{ url_for('remove_student_from_class_post', class_id=class_obj.id, student_id=student.id) }}" method="POST" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-times"></i> Confirmer la suppression
+                </button>
+                <a href="{{ url_for('view_class', class_id=class_obj.id) }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Annuler
+                </a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
