@@ -73,6 +73,52 @@
                             </button>
                         </div>
                         
+                        <!-- Section Mots mêlés -->
+                        <div id="word_search_section" class="exercise-type-section" {% if exercise.exercise_type != 'word_search' %}style="display: none"{% endif %}>
+                            <h3>Mots mêlés</h3>
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle"></i>
+                                Ajoutez les mots à trouver dans la grille. Ils seront placés automatiquement.
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Taille de la grille</label>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="input-group mb-3">
+                                            <span class="input-group-text">Largeur</span>
+                                            <input type="number" class="form-control" name="grid_width" value="{{ content.grid|length if content and content.grid else 10 }}" min="5" max="15" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="input-group mb-3">
+                                            <span class="input-group-text">Hauteur</span>
+                                            <input type="number" class="form-control" name="grid_height" value="{{ content.grid[0]|length if content and content.grid else 10 }}" min="5" max="15" required>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Mots à trouver</label>
+                                <div id="wordsContainer">
+                                    {% if content and content.words %}
+                                        {% for word in content.words %}
+                                            <div class="input-group mb-2 word-group">
+                                                <input type="text" class="form-control" name="words[]" value="{{ word }}" required>
+                                                <button type="button" class="btn btn-outline-danger" onclick="removeWord(this)">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        {% endfor %}
+                                    {% endif %}
+                                </div>
+                                <button type="button" class="btn btn-outline-primary mt-2" onclick="addWord()">
+                                    <i class="bi bi-plus-circle"></i> Ajouter un mot
+                                </button>
+                            </div>
+                        </div>
+
                         <!-- Section QCM -->
                         <div id="qcm_section" class="exercise-type-section" {% if exercise.exercise_type != 'qcm' %}style="display: none"{% endif %}>
                             <h3>Questions à choix multiples</h3>
@@ -295,14 +341,44 @@
     }
 
     // Gestion du changement de type d'exercice
+    // Fonctions pour les mots mêlés
+    function addWord() {
+        const container = document.getElementById('wordsContainer');
+        if (!container) return;
+
+        const wordDiv = document.createElement('div');
+        wordDiv.className = 'input-group mb-2 word-group';
+        wordDiv.innerHTML = `
+            <input type="text" class="form-control" name="words[]" required>
+            <button type="button" class="btn btn-outline-danger" onclick="removeWord(this)">
+                <i class="bi bi-trash"></i>
+            </button>
+        `;
+
+        container.appendChild(wordDiv);
+    }
+
+    function removeWord(button) {
+        const wordGroup = button.closest('.word-group');
+        if (!wordGroup) return;
+
+        const container = document.getElementById('wordsContainer');
+        if (container && container.children.length > 1) {
+            wordGroup.remove();
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
         const exerciseType = document.getElementById('exercise_type');
         if (exerciseType) {
             exerciseType.addEventListener('change', () => {
                 const qcmSection = document.getElementById('qcm_section');
                 const fillInBlanksContent = document.getElementById('fillInBlanksContent');
+                const wordSearchSection = document.getElementById('word_search_section');
+                
                 if (qcmSection) qcmSection.style.display = exerciseType.value === 'qcm' ? 'block' : 'none';
                 if (fillInBlanksContent) fillInBlanksContent.style.display = exerciseType.value === 'fill_in_blanks' ? 'block' : 'none';
+                if (wordSearchSection) wordSearchSection.style.display = exerciseType.value === 'word_search' ? 'block' : 'none';
             });
         }
 
@@ -317,6 +393,12 @@
         const blanksContainer = document.getElementById('blanksContainer');
         if (blanksContainer && blanksContainer.children.length === 0) {
             addSentence();
+        }
+
+        // Initialisation des mots mêlés
+        const wordsContainer = document.getElementById('wordsContainer');
+        if (wordsContainer && wordsContainer.children.length === 0) {
+            addWord();
         }
     });
 </script>

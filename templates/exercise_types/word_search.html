@@ -1,158 +1,200 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="exercise-header">
-    <div class="header-content">
-        <h2>{{ exercise.title }}</h2>
-        <p class="exercise-description">{{ exercise.description }}</p>
-    </div>
-    {% if current_user.is_teacher %}
-    <div class="header-actions">
-        <a href="{{ url_for('edit_exercise', exercise_id=exercise.id) }}" class="action-button edit">
-            <i class="fas fa-edit"></i> Modifier
-        </a>
-        <form method="POST" action="{{ url_for('delete_exercise', exercise_id=exercise.id) }}" class="d-inline" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cet exercice ?');">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-            <button type="submit" class="action-button delete">
-                <i class="fas fa-trash"></i> Supprimer
-            </button>
-        </form>
-    </div>
-    {% endif %}
-</div>
-
 <div class="container mt-4">
-    <form method="POST" action="{{ url_for('submit_exercise_answer', exercise_id=exercise.id) }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-        {% if course %}
-        <input type="hidden" name="course_id" value="{{ course.id }}"/>
-        {% endif %}
-        
-        <div class="row">
-            <div class="col-md-8">
-                <div class="card">
-                    <div class="card-body">
-                        <h4>Grille de mots</h4>
-                        <div class="word-search-grid" id="wordSearchGrid">
-                            {% for row_index in range(content.grid|length) %}
-                            <div class="grid-row">
-                                {% for col_index in range(content.grid[row_index]|length) %}
-                                <div class="grid-cell" data-x="{{ col_index }}" data-y="{{ row_index }}">
-                                    {{ content.grid[row_index][col_index] }}
+    <div class="card">
+        <div class="card-header bg-white">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="h4 mb-0">{{ exercise.title }}</h2>
+                    {% if exercise.description %}
+                        <p class="text-muted small mb-0">{{ exercise.description }}</p>
+                    {% endif %}
+                </div>
+                {% if current_user.is_teacher and current_user.id == exercise.teacher_id %}
+                <div class="btn-group">
+                    <a href="{{ url_for('exercise.edit_exercise', exercise_id=exercise.id) }}" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-pencil"></i> Modifier
+                    </a>
+                    <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteExerciseModal">
+                        <i class="bi bi-trash"></i> Supprimer
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card-body p-4">
+            <form method="POST" action="{{ url_for('exercise.submit_answer', exercise_id=exercise.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                {% if course %}
+                    <input type="hidden" name="course_id" value="{{ course.id }}"/>
+                {% endif %}
+                
+                <div class="row">
+                    <div class="col-lg-8">
+                        <div class="card h-100 border-success border-opacity-25">
+                            <div class="card-header bg-success bg-opacity-10 border-success border-opacity-25">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-grid-3x3"></i> Grille de mots
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="word-search-grid">
+                                    {% for row_index in range(content.grid|length) %}
+                                    <div class="grid-row">
+                                        {% for cell_index in range(content.grid[row_index]|length) %}
+                                        <div class="grid-cell" data-row="{{ row_index }}" data-col="{{ cell_index }}">
+                                            {{ content.grid[row_index][cell_index] }}
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    {% endfor %}
                                 </div>
-                                {% endfor %}
                             </div>
-                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-4">
+                        <div class="card h-100 border-success border-opacity-25">
+                            <div class="card-header bg-success bg-opacity-10 border-success border-opacity-25">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-list-check"></i> Liste des mots
+                                </h5>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="word-list">
+                                    {% for word in content.words %}
+                                    <div class="word-item" id="word-{{ loop.index0 }}">
+                                        <span class="badge bg-light text-dark">{{ loop.index }}</span>
+                                        <span class="word-text">{{ word }}</span>
+                                        <input type="hidden" name="word_{{ loop.index0 }}" class="word-input">
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-            
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-body">
-                        <h4>Mots à trouver</h4>
-                        <div class="word-list">
-                            {% for word in content.words %}
-                            <div class="word-item" id="word-{{ loop.index0 }}">
-                                <span class="word-text">{{ word }}</span>
-                                <input type="hidden" name="word_{{ loop.index0 }}" class="word-input">
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
+                
+                <div class="text-center mt-4">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="bi bi-check-circle"></i> Valider mes réponses
+                    </button>
                 </div>
-            </div>
+            </form>
         </div>
-        
-        <div class="text-center mt-4">
-            <button type="submit" class="btn btn-primary">
-                <i class="fas fa-check"></i> Valider mes réponses
-            </button>
-        </div>
-    </form>
-</div>
+    </div>
 
 <style>
 .word-search-grid {
     display: inline-block;
     background: white;
-    padding: 15px;
-    border-radius: 8px;
+    padding: 20px;
+    border-radius: 12px;
     user-select: none;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    border: 2px solid #e9ecef;
 }
 
 .grid-row {
     display: flex;
     justify-content: center;
+    margin: 0;
+    padding: 0;
 }
 
 .grid-cell {
     width: 40px;
     height: 40px;
-    border: 1px solid #dee2e6;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.2em;
     font-weight: bold;
+    font-size: 1.2em;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.2s ease;
+    position: relative;
+    border: 1px solid #e9ecef;
+    background: white;
     margin: 2px;
-    text-transform: uppercase;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 .grid-cell:hover {
-    background-color: #e9ecef;
+    background-color: #e7f5ff;
     transform: scale(1.1);
     z-index: 1;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
 }
 
 .grid-cell.selected {
-    background-color: #cfe2ff;
-    border-color: #0d6efd;
+    background-color: #339af0;
+    color: white;
     transform: scale(1.1);
     z-index: 2;
+    box-shadow: 0 3px 8px rgba(51,154,240,0.3);
 }
 
 .grid-cell.highlighted {
-    background-color: #d1e7dd;
-    border-color: #198754;
+    background-color: #40c057;
+    color: white;
+    transform: scale(1);
     animation: cellFound 0.5s ease;
+    box-shadow: 0 2px 6px rgba(64,192,87,0.3);
 }
 
 .word-list {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
+    padding: 15px;
+    max-height: 400px;
+    overflow-y: auto;
 }
 
 .word-item {
-    padding: 8px 12px;
-    border-radius: 4px;
-    background: #f8f9fa;
-    transition: all 0.3s;
+    padding: 12px 15px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    border: 1px solid transparent;
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    margin: 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
 .word-item:hover {
-    border-color: #dee2e6;
-    transform: translateX(5px);
+    transform: translateX(8px);
+    background-color: #f1f3f5;
+    border-color: #ced4da;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
 .word-item.found {
-    background-color: #d1e7dd;
-    color: #0a3622;
-    border-color: #198754;
+    background-color: #d3f9d8;
+    border-color: #8ce99a;
+    color: #2b8a3e;
+    box-shadow: 0 2px 5px rgba(140,233,154,0.3);
 }
 
-.word-text {
-    font-size: 1.1em;
+.word-item .badge {
+    min-width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+    margin-right: 10px;
+}
+
+.word-item .word-text {
+    font-size: 1rem;
+    font-weight: 500;
     text-transform: uppercase;
+    color: #495057;
 }
 
 @keyframes wordFound {
@@ -161,38 +203,38 @@
         background-color: #f8f9fa;
     }
     50% {
-        transform: translateX(10px);
-        background-color: #d1e7dd;
+        transform: translateX(12px);
+        background-color: #d3f9d8;
     }
     100% {
         transform: translateX(0);
-        background-color: #d1e7dd;
+        background-color: #d3f9d8;
     }
 }
 
 @keyframes cellFound {
     0% {
         transform: scale(1);
-        background-color: #cfe2ff;
+        background-color: #e7f5ff;
     }
     50% {
         transform: scale(1.2);
-        background-color: #d1e7dd;
+        background-color: #d3f9d8;
     }
     100% {
         transform: scale(1);
-        background-color: #d1e7dd;
+        background-color: #d3f9d8;
     }
 }
 
 @keyframes wrongSelection {
     0% {
         transform: scale(1);
-        background-color: #cfe2ff;
+        background-color: #ffe3e3;
     }
-    25% {
+    50% {
         transform: scale(1.1);
-        background-color: #f8d7da;
+        background-color: #ffe3e3;
     }
     100% {
         transform: scale(1);
@@ -208,6 +250,25 @@ document.addEventListener('DOMContentLoaded', function() {
     let isSelecting = false;
     let selectedCells = [];
     let startCell = null;
+    
+    // Fonctions utilitaires
+    function normalizeWord(word) {
+        return word.trim().toUpperCase();
+    }
+    
+    function getSelectedWord() {
+        return selectedCells.map(cell => cell.textContent.trim()).join('');
+    }
+    
+    function getDirection(startX, startY, endX, endY) {
+        const dx = Math.sign(endX - startX);
+        const dy = Math.sign(endY - startY);
+        return { dx, dy };
+    }
+    
+    function getCellAt(x, y) {
+        return document.querySelector(`.grid-cell[data-x="${x}"][data-y="${y}"]`);
+    }
     
     // Fonction pour obtenir une cellule par ses coordonnées
     function getCellAt(x, y) {
@@ -231,38 +292,32 @@ document.addEventListener('DOMContentLoaded', function() {
     function checkWord(word) {
         const normalizedWord = normalizeWord(word);
         const wordItems = document.querySelectorAll('.word-item');
+        let found = false;
         
-        for (let item of wordItems) {
+        wordItems.forEach(item => {
             const wordText = item.querySelector('.word-text').textContent;
             const normalizedWordText = normalizeWord(wordText);
+            const input = item.querySelector('.word-input');
             
-            if (normalizedWordText === normalizedWord || 
-                normalizedWordText === normalizeWord(word.split('').reverse().join(''))) {
-                
+            if (normalizedWord === normalizedWordText || 
+                normalizedWord === normalizedWordText.split('').reverse().join('')) {
                 if (!item.classList.contains('found')) {
-                    // Marquer le mot comme trouvé
                     item.classList.add('found');
                     
-                    // Ajouter une animation
+                    if (input) {
+                        input.value = wordText;
+                    }
+                    
+                    item.style.animation = 'none';
+                    item.offsetHeight;
                     item.style.animation = 'wordFound 0.5s ease';
                     
-                    // Sauvegarder les coordonnées du mot trouvé
-                    const coords = selectedCells.map(cell => ({
-                        x: parseInt(cell.dataset.x),
-                        y: parseInt(cell.dataset.y)
-                    }));
-                    item.querySelector('.word-input').value = JSON.stringify(coords);
-                    
-                    // Ajouter une icône de succès
-                    const checkIcon = document.createElement('i');
-                    checkIcon.className = 'fas fa-check ms-2 text-success';
-                    item.appendChild(checkIcon);
-                    
-                    return true;
+                    found = true;
                 }
             }
-        }
-        return false;
+        });
+        
+        return found;
     }
     
     // Fonction pour obtenir la direction entre deux points
@@ -282,43 +337,39 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Fonction pour mettre à jour la sélection entre deux cellules
     function updateSelection(endCell) {
-        if (!startCell) return;
-        
-        // Réinitialiser la sélection précédente
-        selectedCells.forEach(cell => cell.classList.remove('selected'));
-        selectedCells = [];
+        if (!startCell || !endCell) return;
         
         const startX = parseInt(startCell.dataset.x);
         const startY = parseInt(startCell.dataset.y);
         const endX = parseInt(endCell.dataset.x);
         const endY = parseInt(endCell.dataset.y);
         
-        // Obtenir la direction
-        const { dx, dy, steps } = getDirection(startX, startY, endX, endY);
+        const { dx, dy } = getDirection(startX, startY, endX, endY);
+        let currentX = startX;
+        let currentY = startY;
         
-        // Vérifier si la direction est valide (horizontale, verticale ou diagonale)
-        if (Math.abs(dx) > 1 || Math.abs(dy) > 1) return;
+        selectedCells.forEach(cell => cell.classList.remove('selected'));
+        selectedCells = [];
         
-        // Sélectionner toutes les cellules le long de la ligne
-        for (let i = 0; i <= steps; i++) {
-            const x = Math.round(startX + dx * i);
-            const y = Math.round(startY + dy * i);
-            const cell = getCellAt(x, y);
+        while (true) {
+            const cell = getCellAt(currentX, currentY);
+            if (!cell) break;
             
-            if (cell) {
-                cell.classList.add('selected');
-                selectedCells.push(cell);
-            }
+            cell.classList.add('selected');
+            selectedCells.push(cell);
+            
+            if (currentX === endX && currentY === endY) break;
+            
+            currentX += dx;
+            currentY += dy;
         }
     }
     
-    // Gestionnaires d'événements pour la sélection
     cells.forEach(cell => {
-        // Désactiver le comportement de glissement par défaut
         cell.addEventListener('dragstart', (e) => e.preventDefault());
         
         cell.addEventListener('mousedown', (e) => {
-            e.preventDefault(); // Empêcher la sélection de texte
+            e.preventDefault();
             isSelecting = true;
             startCell = cell;
             updateSelection(cell);
@@ -332,40 +383,33 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // Gestionnaire pour la fin de sélection
     document.addEventListener('mouseup', () => {
         if (isSelecting) {
             isSelecting = false;
             const word = getSelectedWord();
             
             if (checkWord(word)) {
-                // Effet de succès sur les cellules
                 selectedCells.forEach(cell => {
                     cell.classList.remove('selected');
                     cell.classList.add('highlighted');
-                    
-                    // Animation de succès
                     cell.style.animation = 'none';
-                    cell.offsetHeight; // Forcer le reflow
+                    cell.offsetHeight;
                     cell.style.animation = 'cellFound 0.5s ease';
                 });
                 
-                // Vérifier si tous les mots sont trouvés
                 const allWords = document.querySelectorAll('.word-item');
                 const foundWords = document.querySelectorAll('.word-item.found');
                 if (allWords.length === foundWords.length) {
-                    // Animation de succès finale
                     setTimeout(() => {
                         const grid = document.querySelector('.word-search-grid');
                         grid.style.animation = 'wordFound 1s ease';
                     }, 500);
                 }
             } else {
-                // Animation d'échec sur les cellules
                 selectedCells.forEach(cell => {
                     cell.classList.remove('selected');
                     cell.style.animation = 'none';
-                    cell.offsetHeight; // Forcer le reflow
+                    cell.offsetHeight;
                     cell.style.animation = 'wrongSelection 0.3s ease';
                 });
             }
@@ -375,7 +419,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Gestionnaire pour annuler la sélection si on sort de la grille
     document.addEventListener('mouseleave', (e) => {
         if (isSelecting && !e.relatedTarget?.closest('.word-search-grid')) {
             isSelecting = false;
@@ -386,4 +429,38 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+
+<!-- Modal de confirmation de suppression -->
+{% if current_user.is_teacher and current_user.id == exercise.teacher_id %}
+<div class="modal fade" id="deleteExerciseModal" tabindex="-1" aria-labelledby="deleteExerciseModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteExerciseModalLabel">
+                    <i class="bi bi-exclamation-triangle"></i> Confirmer la suppression
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">
+                    Êtes-vous sûr de vouloir supprimer l'exercice "{{ exercise.title }}" ?
+                    <br><br>
+                    <strong class="text-danger">Cette action est irréversible !</strong>
+                </p>
+            </div>
+            <div class="modal-footer justify-content-center border-0 pt-0">
+                <button type="button" class="btn btn-secondary btn-lg px-4" data-bs-dismiss="modal">
+                    <i class="bi bi-x"></i> Annuler
+                </button>
+                <form action="{{ url_for('exercise.delete_exercise', exercise_id=exercise.id) }}" method="POST" style="display: inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger btn-lg px-4">
+                        <i class="bi bi-trash"></i> Supprimer
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}

@@ -101,14 +101,20 @@ class WordSearchGenerator:
 
 def generate_word_search(words: List[str], width: int = 15, height: int = 15) -> Optional[Dict]:
     """Génère une grille de mots mêlés avec les mots donnés."""
+    print(f"[Word Search Generator] Input words: {words}")
+    print(f"[Word Search Generator] Grid dimensions: {width}x{height}")
+    
     # Vérifier les dimensions minimales
     if width < 5 or height < 5:
+        print(f"[Word Search Generator] Grid dimensions too small: {width}x{height}")
         return None
     if not words:
+        print(f"[Word Search Generator] No words provided")
         return None
 
     # Trier les mots par longueur (plus longs en premier)
     words = sorted(words, key=len, reverse=True)
+    print(f"[Word Search Generator] Sorted words: {words}")
     
     # Créer la grille
     generator = WordSearchGenerator(width, height)
@@ -116,18 +122,26 @@ def generate_word_search(words: List[str], width: int = 15, height: int = 15) ->
     # Essayer de placer chaque mot
     placed_words = []
     for word in words:
-        if generator.add_word(word.strip()):
+        word = word.strip()
+        print(f"[Word Search Generator] Trying to place word: {word}")
+        if generator.add_word(word):
             placed_words.append(word.upper())
+            print(f"[Word Search Generator] Successfully placed word: {word}")
+        else:
+            print(f"[Word Search Generator] Failed to place word: {word}")
     
     # Si aucun mot n'a pu être placé, retourner None
     if not placed_words:
+        print(f"[Word Search Generator] No words could be placed in the grid")
         return None
     
     # Remplir les espaces vides
     generator.fill_empty()
     
-    return {
+    result = {
         'grid': generator.get_grid(),
         'words': placed_words,
         'word_positions': generator.get_word_positions()
     }
+    print(f"[Word Search Generator] Final result: {result}")
+    return result

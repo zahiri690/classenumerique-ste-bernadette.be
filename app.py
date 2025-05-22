@@ -598,6 +598,8 @@ def view_exercise(exercise_id):
         app.logger.info(f'Accessing exercise {exercise_id}')
         exercise = Exercise.query.get_or_404(exercise_id)
         app.logger.info(f'Found exercise: {exercise.title}')
+        app.logger.info(f'Exercise type: {exercise.exercise_type}')
+        app.logger.info(f'Exercise content: {exercise.content}')
         course_id = request.args.get('course_id', type=int)
         course = Course.query.get(course_id) if course_id else None
         app.logger.info(f'Course ID: {course_id}, Course: {course.title if course else None}')
@@ -805,6 +807,30 @@ def edit_exercise(exercise_id):
                 return redirect(url_for('edit_exercise', exercise_id=exercise_id))
 
             content = {'instructions': instructions}
+        elif exercise.exercise_type == 'word_search':
+            words = request.form.getlist('words[]')
+            # Filtrer les mots vides
+            words = [word.strip().upper() for word in words if word.strip()]
+            if not words:
+                flash('Au moins un mot est requis pour un exercice de mots mêlés.', 'error')
+                return redirect(url_for('edit_exercise', exercise_id=exercise_id))
+            
+            # Récupérer la taille de la grille
+            grid_size = int(request.form.get('grid_size', 15))
+            if grid_size < 5:
+                flash('La taille de la grille doit être d\'au moins 5x5.', 'error')
+                return redirect(url_for('edit_exercise', exercise_id=exercise_id))
+            
+            app.logger.info(f"[Word Search] Words to place: {words}")
+            app.logger.info(f"[Word Search] Grid size: {grid_size}x{grid_size}")
+            
+            from utils.word_search import generate_word_search
+            result = generate_word_search(words, grid_size, grid_size)
+            if not result:
+                flash('Impossible de générer la grille avec les mots donnés. Essayez avec des mots plus courts, moins de mots, ou une grille plus grande.', 'error')
+                return redirect(url_for('edit_exercise', exercise_id=exercise_id))
+            
+            content = result
 
         # Sauvegarder le contenu
         exercise.set_content(content)

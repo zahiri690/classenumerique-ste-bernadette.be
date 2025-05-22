@@ -26,6 +26,20 @@ def view_exercise(exercise_id):
     # Get exercise content
     content = exercise.get_content()
     
+    # Initialize content if needed
+    if not content:
+        content = {}
+    
+    # Handle word search content
+    if exercise.exercise_type == 'word_search' and ('grid' not in content or 'words' not in content):
+        # Default grid size
+        grid_size = 10
+        grid = [['' for _ in range(grid_size)] for _ in range(grid_size)]
+        content = {
+            'grid': grid,
+            'words': []
+        }
+    
     # Render the appropriate template based on exercise type
     template = f'exercise_types/{exercise.exercise_type}.html'
     return render_template(template,
@@ -88,6 +102,25 @@ def submit_answer(exercise_id):
         
         score = (correct_count / total_pairs) * 100
 
+    elif exercise.exercise_type == 'word_search':
+        answers = {}
+        found_words = []
+        for key, value in request.form.items():
+            if key.startswith('word_'):
+                word_index = int(key.split('_')[1])
+                if value:  # Only count non-empty responses
+                    found_words.append(value.strip().upper())
+        
+        # Calculate score
+        correct_count = 0
+        total_words = len(content['words'])
+        for word in content['words']:
+            if word.upper() in found_words:
+                correct_count += 1
+        
+        score = (correct_count / total_words) * 100 if total_words > 0 else 0
+        answers = {'found_words': found_words}
+
     else:
         return jsonify({'error': 'Type d\'exercice non pris en charge'}), 400
 
@@ -145,6 +178,31 @@ def edit_exercise(exercise_id):
                         'answer': answers[0]  # Prendre la première réponse pour chaque phrase
                     })
             content = {'phrases': phrases}
+            exercise.content = json.dumps(content)
+        elif exercise.exercise_type == 'word_search':
+            # Récupérer les mots et la taille de la grille
+            words = request.form.getlist('words[]')
+            grid_width = int(request.form.get('grid_width', 10))
+            grid_height = int(request.form.get('grid_height', 10))
+            
+            # Générer la grille de mots mêlés
+            from utils import generate_word_search
+            result = generate_word_search(words, grid_width, grid_height)
+            
+            if result:
+                content = {
+                    'grid': result['grid'],
+                    'words': result['words'],
+                    'word_positions': result['word_positions']
+                }
+            else:
+                # En cas d'échec, créer une grille vide
+                content = {
+                    'grid': [['' for _ in range(grid_width)] for _ in range(grid_height)],
+                    'words': words,
+                    'word_positions': {}
+                }
+            
             exercise.content = json.dumps(content)
         else:
             exercise.content = request.form['content']

@@ -185,86 +185,87 @@ class Exercise(db.Model):
     def get_content(self):
         """Récupère le contenu JSON de l'exercice de manière sécurisée"""
         if not self.content:
-            return {}
-            
+            return None
+        
         try:
             content = json.loads(self.content)
-            if not isinstance(content, dict):
-                content = {}
-                
-            # Pour les exercices QCM
+            
+            # Traitement spécifique selon le type d'exercice
             if self.exercise_type == 'qcm':
-                if 'questions' not in content:
-                    content['questions'] = []
-                    
-                # Pour chaque question, assurer qu'elle a le bon format
-                for question in content['questions']:
-                    if not isinstance(question, dict):
-                        question = {'text': str(question), 'options': [], 'correct_answer': 0}
-                    if 'options' not in question:
-                        question['options'] = []
-                    if 'correct_answer' not in question:
-                        question['correct_answer'] = 0
+                # Vérifier que le contenu a la bonne structure
+                if not isinstance(content, dict) or 'questions' not in content:
+                    return {
+                        'questions': []
+                    }
                 
-            # Pour les exercices de type underline_words
-            if self.exercise_type == 'underline_words':
-                if 'sentences' not in content:
-                    content['sentences'] = []
-                    
-                # Pour chaque phrase, assurer qu'elle a le bon format
-                for i, sentence in enumerate(content['sentences']):
-                    if isinstance(sentence, str):
-                        content['sentences'][i] = {
-                            'text': sentence,
-                            'words_to_underline': []
-                        }
-                    elif isinstance(sentence, dict):
-                        if 'text' not in sentence:
-                            sentence['text'] = ''
-                        if 'words_to_underline' not in sentence:
-                            sentence['words_to_underline'] = []
-                            
-            # Pour les exercices de type pairs
-            elif self.exercise_type == 'pairs':
-                if 'pairs' not in content:
-                    content['pairs'] = []
-                    
-            # Pour les exercices de type QCM
-            elif self.exercise_type == 'qcm':
-                if 'questions' not in content:
-                    content['questions'] = []
-                    
-                # Pour chaque question, assurer qu'elle a le bon format
+                # Vérifier chaque question
                 for question in content['questions']:
                     if not isinstance(question, dict):
                         continue
+                    
+                    # S'assurer que les champs requis sont présents
                     if 'text' not in question:
                         question['text'] = ''
                     if 'options' not in question:
                         question['options'] = []
                     if 'correct_answer' not in question:
-                        question['correct_answer'] = None
-                        
-            # Pour les exercices de type fill_in_blanks
-            elif self.exercise_type == 'fill_in_blanks':
-                if 'sentences' not in content:
-                    content['sentences'] = []
+                        question['correct_answer'] = 0
                     
-                # Pour chaque phrase, assurer qu'elle a le bon format
-                for sentence in content['sentences']:
-                    if not isinstance(sentence, dict):
+                    # S'assurer que correct_answer est dans les limites
+                    if question['correct_answer'] >= len(question['options']):
+                        question['correct_answer'] = 0
+        
+            elif self.exercise_type == 'fill_in_blanks':
+                # Vérifier que le contenu a la bonne structure
+                if not isinstance(content, dict) or 'phrases' not in content:
+                    return {
+                        'phrases': []
+                    }
+                
+                # Vérifier chaque phrase
+                for phrase in content['phrases']:
+                    if not isinstance(phrase, dict):
                         continue
-                    if 'text' not in sentence:
-                        sentence['text'] = ''
-                    if 'answer' not in sentence:
-                        sentence['answer'] = ''
-                        
-            return content
+                    if 'text' not in phrase:
+                        phrase['text'] = ''
+                    if 'answer' not in phrase:
+                        phrase['answer'] = ''
             
+            elif self.exercise_type == 'word_search':
+                print(f"[Word Search] Content before processing: {content}")
+                # Vérifier que le contenu a la bonne structure
+                if not isinstance(content, dict):
+                    print(f"[Word Search] Content is not a dict, creating empty dict")
+                    content = {}
+                
+                # S'assurer que tous les champs requis sont présents
+                if 'grid' not in content or not content['grid']:
+                    print(f"[Word Search] Grid is missing or empty, creating 10x10 grid")
+                    # Créer une grille vide 10x10 par défaut
+                    content['grid'] = [[''] * 10 for _ in range(10)]
+                
+                if 'words' not in content:
+                    print(f"[Word Search] Words list is missing, creating empty list")
+                    content['words'] = []
+                
+                # Vérifier que la grille est valide
+                grid_height = len(content['grid'])
+                grid_width = len(content['grid'][0]) if grid_height > 0 else 10
+                print(f"[Word Search] Grid dimensions: {grid_height}x{grid_width}")
+                
+                # S'assurer que toutes les lignes ont la même longueur
+                content['grid'] = [
+                    row[:grid_width] + [''] * (grid_width - len(row))
+                    for row in content['grid'][:grid_height]
+                ]
+                print(f"[Word Search] Final content: {content}")
+                    
+            return content
+        
         except json.JSONDecodeError:
             # En cas d'erreur de décodage JSON, retourner un contenu vide
             return {}
-            
+        
         except Exception as e:
             print(f"Erreur inattendue pour l'exercice {self.id}: {str(e)}")
             return {}
