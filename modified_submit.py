@@ -12,10 +12,15 @@ def exercise_library():
     exercises = Exercise.query.order_by(desc(Exercise.created_at)).all()
     return render_template('exercise_library.html', exercises=exercises)
 
+from flask import current_app
+
 @bp.route('/exercise/<int:exercise_id>')
 @login_required
 def view_exercise(exercise_id):
+    current_app.logger.info(f"[View Exercise] Accessing exercise {exercise_id}")
     exercise = db.get_or_404(Exercise, exercise_id)
+    current_app.logger.info(f"[View Exercise] Exercise type: {exercise.exercise_type}")
+    current_app.logger.info(f"[View Exercise] Raw content: {exercise.content}")
     
     # Get the latest attempt for this exercise by the current user
     attempt = ExerciseAttempt.query.filter_by(
@@ -25,23 +30,32 @@ def view_exercise(exercise_id):
     
     # Get exercise content
     content = exercise.get_content()
+    current_app.logger.info(f"[View Exercise] Parsed content: {content}")
     
     # Initialize content if needed
     if not content:
+        current_app.logger.warning("[View Exercise] No content found, initializing empty dict")
         content = {}
     
     # Handle word search content
-    if exercise.exercise_type == 'word_search' and ('grid' not in content or 'words' not in content):
-        # Default grid size
-        grid_size = 10
-        grid = [['' for _ in range(grid_size)] for _ in range(grid_size)]
-        content = {
-            'grid': grid,
-            'words': []
-        }
+    if exercise.exercise_type == 'word_search':
+        current_app.logger.info(f"[View Exercise] Word Search content: {content}")
+        if 'grid' not in content or 'words' not in content:
+            current_app.logger.warning("[View Exercise] Missing grid or words, creating default content")
+            # Default grid size
+            grid_size = 10
+            grid = [['' for _ in range(grid_size)] for _ in range(grid_size)]
+            content = {
+                'grid': grid,
+                'words': []
+            }
+        else:
+            current_app.logger.info(f"[View Exercise] Grid size: {len(content['grid'])}x{len(content['grid'][0])}")
+            current_app.logger.info(f"[View Exercise] Words: {content['words']}")
     
     # Render the appropriate template based on exercise type
     template = f'exercise_types/{exercise.exercise_type}.html'
+    current_app.logger.info(f"[View Exercise] Using template: {template}")
     return render_template(template,
                          exercise=exercise,
                          content=content,
@@ -182,12 +196,11 @@ def edit_exercise(exercise_id):
         elif exercise.exercise_type == 'word_search':
             # Récupérer les mots et la taille de la grille
             words = request.form.getlist('words[]')
-            grid_width = int(request.form.get('grid_width', 10))
-            grid_height = int(request.form.get('grid_height', 10))
+            grid_size = int(request.form.get('grid_size', 10))
             
             # Générer la grille de mots mêlés
-            from utils import generate_word_search
-            result = generate_word_search(words, grid_width, grid_height)
+            from utils.word_search import generate_word_search
+            result = generate_word_search(words, grid_size, grid_size)
             
             if result:
                 content = {
@@ -198,7 +211,7 @@ def edit_exercise(exercise_id):
             else:
                 # En cas d'échec, créer une grille vide
                 content = {
-                    'grid': [['' for _ in range(grid_width)] for _ in range(grid_height)],
+                    'grid': [['' for _ in range(grid_size)] for _ in range(grid_size)],
                     'words': words,
                     'word_positions': {}
                 }
@@ -217,7 +230,8 @@ def edit_exercise(exercise_id):
     
     # Get exercise content
     content = exercise.get_content()
-    return render_template('edit_exercise.html', exercise=exercise, content=content)
+    template = f'exercise_types/{exercise.exercise_type}_edit.html'
+    return render_template(template, exercise=exercise, content=content)
 
 @bp.route('/exercise/<int:exercise_id>/delete', methods=['POST'])
 @login_required

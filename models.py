@@ -184,11 +184,15 @@ class Exercise(db.Model):
     
     def get_content(self):
         """Récupère le contenu JSON de l'exercice de manière sécurisée"""
+        from flask import current_app
+        
         if not self.content:
+            current_app.logger.warning(f"[Exercise {self.id}] No content found")
             return None
         
         try:
             content = json.loads(self.content)
+            current_app.logger.info(f"[Exercise {self.id}] Successfully loaded JSON content")
             
             # Traitement spécifique selon le type d'exercice
             if self.exercise_type == 'qcm':
@@ -232,42 +236,44 @@ class Exercise(db.Model):
                         phrase['answer'] = ''
             
             elif self.exercise_type == 'word_search':
-                print(f"[Word Search] Content before processing: {content}")
+                current_app.logger.info(f"[Exercise {self.id}] Processing word search content: {content}")
+                
                 # Vérifier que le contenu a la bonne structure
                 if not isinstance(content, dict):
-                    print(f"[Word Search] Content is not a dict, creating empty dict")
+                    current_app.logger.warning(f"[Exercise {self.id}] Content is not a dict, creating empty dict")
                     content = {}
                 
                 # S'assurer que tous les champs requis sont présents
                 if 'grid' not in content or not content['grid']:
-                    print(f"[Word Search] Grid is missing or empty, creating 10x10 grid")
+                    current_app.logger.warning(f"[Exercise {self.id}] Grid is missing or empty, creating 10x10 grid")
                     # Créer une grille vide 10x10 par défaut
                     content['grid'] = [[''] * 10 for _ in range(10)]
                 
                 if 'words' not in content:
-                    print(f"[Word Search] Words list is missing, creating empty list")
+                    current_app.logger.warning(f"[Exercise {self.id}] Words list is missing, creating empty list")
                     content['words'] = []
                 
                 # Vérifier que la grille est valide
                 grid_height = len(content['grid'])
                 grid_width = len(content['grid'][0]) if grid_height > 0 else 10
-                print(f"[Word Search] Grid dimensions: {grid_height}x{grid_width}")
+                current_app.logger.info(f"[Exercise {self.id}] Grid dimensions: {grid_height}x{grid_width}")
                 
-                # S'assurer que toutes les lignes ont la même longueur
+                # S'assurer que toutes les lignes ont la même longueur et contiennent des chaînes
                 content['grid'] = [
-                    row[:grid_width] + [''] * (grid_width - len(row))
+                    [str(cell) if cell else '' for cell in (row[:grid_width] + [''] * (grid_width - len(row)))]
                     for row in content['grid'][:grid_height]
                 ]
-                print(f"[Word Search] Final content: {content}")
+                current_app.logger.info(f"[Exercise {self.id}] Final content: {content}")
                     
             return content
         
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
+            current_app.logger.error(f"[Exercise {self.id}] JSON decode error: {str(e)}")
             # En cas d'erreur de décodage JSON, retourner un contenu vide
             return {}
         
         except Exception as e:
-            print(f"Erreur inattendue pour l'exercice {self.id}: {str(e)}")
+            current_app.logger.error(f"[Exercise {self.id}] Unexpected error: {str(e)}")
             return {}
     
     def set_content(self, content):

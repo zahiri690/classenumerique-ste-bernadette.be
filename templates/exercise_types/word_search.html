@@ -95,6 +95,7 @@
     user-select: none;
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     border: 2px solid #e9ecef;
+    transition: transform 0.3s ease;
 }
 
 .grid-row {
@@ -110,16 +111,16 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: bold;
-    font-size: 1.2em;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    position: relative;
-    border: 1px solid #e9ecef;
-    background: white;
+    font-size: 1.2rem;
+    font-weight: 600;
+    border-radius: 8px;
     margin: 2px;
-    border-radius: 4px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    transition: all 0.2s ease;
+    cursor: pointer;
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    color: #495057;
+    position: relative;
 }
 
 .grid-cell:hover {
@@ -130,18 +131,17 @@
 }
 
 .grid-cell.selected {
-    background-color: #339af0;
-    color: white;
+    background-color: #e7f5ff;
+    border-color: #4dabf7;
     transform: scale(1.1);
-    z-index: 2;
-    box-shadow: 0 3px 8px rgba(51,154,240,0.3);
+    z-index: 1;
+    box-shadow: 0 2px 4px rgba(77,171,247,0.2);
 }
 
-.grid-cell.highlighted {
-    background-color: #40c057;
-    color: white;
+.grid-cell.found {
+    background-color: #d3f9d8;
+    border-color: #40c057;
     transform: scale(1);
-    animation: cellFound 0.5s ease;
     box-shadow: 0 2px 6px rgba(64,192,87,0.3);
 }
 
@@ -164,6 +164,7 @@
     border: 1px solid #e9ecef;
     margin: 0;
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    cursor: default;
 }
 
 .word-item:hover {
@@ -244,12 +245,13 @@
 </style>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const grid = document.getElementById('wordSearchGrid');
+document.addEventListener('DOMContentLoaded', () => {
+    const grid = document.querySelector('.word-search-grid');
     const cells = document.querySelectorAll('.grid-cell');
     let isSelecting = false;
     let selectedCells = [];
     let startCell = null;
+    let lastDirection = null;
     
     // Fonctions utilitaires
     function normalizeWord(word) {
@@ -260,22 +262,10 @@ document.addEventListener('DOMContentLoaded', function() {
         return selectedCells.map(cell => cell.textContent.trim()).join('');
     }
     
-    function getDirection(startX, startY, endX, endY) {
-        const dx = Math.sign(endX - startX);
-        const dy = Math.sign(endY - startY);
-        return { dx, dy };
-    }
-    
     function getCellAt(x, y) {
-        return document.querySelector(`.grid-cell[data-x="${x}"][data-y="${y}"]`);
+        return document.querySelector(`.grid-cell[data-row="${x}"][data-col="${y}"]`);
     }
     
-    // Fonction pour obtenir une cellule par ses coordonnées
-    function getCellAt(x, y) {
-        return grid.querySelector(`.grid-cell[data-x="${x}"][data-y="${y}"]`);
-    }
-    
-    // Fonction pour normaliser un mot (enlever les accents et mettre en majuscules)
     function normalizeWord(word) {
         return word.normalize('NFD')
                    .replace(/[\u0300-\u036f]/g, '')
@@ -283,12 +273,10 @@ document.addEventListener('DOMContentLoaded', function() {
                    .trim();
     }
 
-    // Fonction pour obtenir le mot formé par les cellules sélectionnées
     function getSelectedWord() {
         return selectedCells.map(cell => cell.textContent.trim()).join('');
     }
     
-    // Fonction pour vérifier si un mot est dans la liste
     function checkWord(word) {
         const normalizedWord = normalizeWord(word);
         const wordItems = document.querySelectorAll('.word-item');
@@ -320,7 +308,6 @@ document.addEventListener('DOMContentLoaded', function() {
         return found;
     }
     
-    // Fonction pour obtenir la direction entre deux points
     function getDirection(startX, startY, endX, endY) {
         const dx = endX - startX;
         const dy = endY - startY;
@@ -335,14 +322,13 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     }
     
-    // Fonction pour mettre à jour la sélection entre deux cellules
     function updateSelection(endCell) {
         if (!startCell || !endCell) return;
         
-        const startX = parseInt(startCell.dataset.x);
-        const startY = parseInt(startCell.dataset.y);
-        const endX = parseInt(endCell.dataset.x);
-        const endY = parseInt(endCell.dataset.y);
+        const startX = parseInt(startCell.dataset.row);
+        const startY = parseInt(startCell.dataset.col);
+        const endX = parseInt(endCell.dataset.row);
+        const endY = parseInt(endCell.dataset.col);
         
         const { dx, dy } = getDirection(startX, startY, endX, endY);
         let currentX = startX;
@@ -372,7 +358,9 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             isSelecting = true;
             startCell = cell;
-            updateSelection(cell);
+            selectedCells = [cell];
+            cell.classList.add('selected');
+            lastDirection = null;
         });
         
         cell.addEventListener('mousemove', (e) => {
@@ -388,34 +376,31 @@ document.addEventListener('DOMContentLoaded', function() {
             isSelecting = false;
             const word = getSelectedWord();
             
-            if (checkWord(word)) {
+            if (word.length > 1 && checkWord(word)) {
                 selectedCells.forEach(cell => {
                     cell.classList.remove('selected');
-                    cell.classList.add('highlighted');
-                    cell.style.animation = 'none';
-                    cell.offsetHeight;
-                    cell.style.animation = 'cellFound 0.5s ease';
+                    cell.classList.add('found');
                 });
                 
                 const allWords = document.querySelectorAll('.word-item');
                 const foundWords = document.querySelectorAll('.word-item.found');
                 if (allWords.length === foundWords.length) {
                     setTimeout(() => {
-                        const grid = document.querySelector('.word-search-grid');
-                        grid.style.animation = 'wordFound 1s ease';
-                    }, 500);
+                        const submitButton = document.querySelector('button[type="submit"]');
+                        if (submitButton) {
+                            submitButton.click();
+                        }
+                    }, 1000);
                 }
             } else {
                 selectedCells.forEach(cell => {
                     cell.classList.remove('selected');
-                    cell.style.animation = 'none';
-                    cell.offsetHeight;
-                    cell.style.animation = 'wrongSelection 0.3s ease';
                 });
             }
             
             selectedCells = [];
             startCell = null;
+            lastDirection = null;
         }
     });
     
@@ -425,6 +410,7 @@ document.addEventListener('DOMContentLoaded', function() {
             selectedCells.forEach(cell => cell.classList.remove('selected'));
             selectedCells = [];
             startCell = null;
+            lastDirection = null;
         }
     });
 });

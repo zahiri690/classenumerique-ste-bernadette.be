@@ -46,12 +46,13 @@
         <div class="mb-3">
             <label for="grid-size" class="form-label">Taille de la grille</label>
             <select class="form-select" id="grid-size" name="grid_size" required>
-                {% for size in range(8, 21) %}
+                {% for size in range(5, 16) %}
                     <option value="{{ size }}" {% if exercise and exercise.content and exercise.content.grid|length == size %}selected{% endif %}>
                         {{ size }}x{{ size }}
                     </option>
                 {% endfor %}
             </select>
+            <small class="form-text text-muted">La taille de la grille doit être entre 5x5 et 15x15</small>
         </div>
 
         <div class="mb-3">
