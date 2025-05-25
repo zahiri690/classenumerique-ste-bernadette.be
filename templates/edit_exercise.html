@@ -19,7 +19,7 @@
                     <h2 class="h4 mb-0">Modifier l'exercice</h2>
                 </div>
                 <div class="card-body">
-                    <form method="POST" action="{{ url_for('exercise.edit_exercise', exercise_id=exercise.id) }}">
+                    <form method="POST" action="{{ url_for('edit_exercise', exercise_id=exercise.id) }}" id="edit-exercise-form">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         
                         <div class="mb-3">
@@ -119,6 +119,12 @@
                             </div>
                         </div>
 
+                        <!-- Section Association de paires -->
+                        <div id="pairs_section" class="exercise-type-section" {% if exercise.exercise_type != 'pairs' %}style="display: none"{% endif %}>
+                            {% include 'exercise_types/pairs_edit.html' %}
+
+                        </div>
+
                         <!-- Section QCM -->
                         <div id="qcm_section" class="exercise-type-section" {% if exercise.exercise_type != 'qcm' %}style="display: none"{% endif %}>
                             <h3>Questions à choix multiples</h3>
@@ -167,8 +173,13 @@
                             </button>
                         </div>
 
-                        <div class="text-end">
-                            <button type="submit" class="btn btn-primary">Enregistrer</button>
+                        <div class="mt-4 d-flex justify-content-between align-items-center fixed-bottom bg-light p-3 border-top" style="left: 0; right: 0; z-index: 1000;">
+                            <a href="{{ url_for('exercise.view_exercise', exercise_id=exercise.id) }}" class="btn btn-secondary btn-lg">
+                                <i class="fas fa-times"></i> Annuler
+                            </a>
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-save"></i> Enregistrer les modifications
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -375,11 +386,86 @@
                 const qcmSection = document.getElementById('qcm_section');
                 const fillInBlanksContent = document.getElementById('fillInBlanksContent');
                 const wordSearchSection = document.getElementById('word_search_section');
+                const pairsSection = document.getElementById('pairs_section');
                 
                 if (qcmSection) qcmSection.style.display = exerciseType.value === 'qcm' ? 'block' : 'none';
                 if (fillInBlanksContent) fillInBlanksContent.style.display = exerciseType.value === 'fill_in_blanks' ? 'block' : 'none';
                 if (wordSearchSection) wordSearchSection.style.display = exerciseType.value === 'word_search' ? 'block' : 'none';
+                if (pairsSection) pairsSection.style.display = exerciseType.value === 'pairs' ? 'block' : 'none';
             });
+        }
+
+        // Gestion des paires
+        const pairsContainer = document.getElementById('pairs-container');
+        const addPairBtn = document.getElementById('add-pair');
+        const questionCountInput = document.getElementById('question_count');
+
+        if (addPairBtn) {
+            addPairBtn.addEventListener('click', () => {
+                const pairCount = pairsContainer.children.length;
+                const pairBlock = document.createElement('div');
+                pairBlock.className = 'pair-block card mb-3';
+                pairBlock.innerHTML = `
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="card-title mb-0">Paire ${pairCount + 1}</h5>
+                            <button type="button" class="btn btn-danger btn-sm remove-pair">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Premier élément :</label>
+                                    <input type="text" class="form-control" name="pair_${pairCount}_first" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Second élément :</label>
+                                    <input type="text" class="form-control" name="pair_${pairCount}_second" required>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                pairsContainer.appendChild(pairBlock);
+                setupPairEvents(pairBlock);
+                updatePairNumbers();
+                updateQuestionCount();
+            });
+        }
+
+        // Configuration des événements pour les paires existantes
+        document.querySelectorAll('.pair-block').forEach(setupPairEvents);
+
+        function setupPairEvents(pairBlock) {
+            const removeBtn = pairBlock.querySelector('.remove-pair');
+            if (removeBtn) {
+                removeBtn.addEventListener('click', () => {
+                    if (confirm('Êtes-vous sûr de vouloir supprimer cette paire ?')) {
+                        pairBlock.remove();
+                        updatePairNumbers();
+                        updateQuestionCount();
+                    }
+                });
+            }
+        }
+
+        function updatePairNumbers() {
+            document.querySelectorAll('.pair-block').forEach((block, index) => {
+                block.querySelector('.card-title').textContent = `Paire ${index + 1}`;
+                const firstInput = block.querySelector('input[name^="pair_"][name$="_first"]');
+                const secondInput = block.querySelector('input[name^="pair_"][name$="_second"]');
+                if (firstInput) firstInput.name = `pair_${index}_first`;
+                if (secondInput) secondInput.name = `pair_${index}_second`;
+            });
+        }
+
+        function updateQuestionCount() {
+            if (questionCountInput) {
+                questionCountInput.value = pairsContainer.children.length;
+            }
         }
 
         // Initialisation des questions QCM
@@ -399,6 +485,11 @@
         const wordsContainer = document.getElementById('wordsContainer');
         if (wordsContainer && wordsContainer.children.length === 0) {
             addWord();
+        }
+
+        // Initialisation des paires
+        if (pairsContainer && pairsContainer.children.length === 0) {
+            addPair();
         }
     });
 </script>

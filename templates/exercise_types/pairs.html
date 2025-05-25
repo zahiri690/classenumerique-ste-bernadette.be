@@ -1,169 +1,166 @@
 {% extends "base.html" %}
 
 {% block content %}
+<div class="exercise-container">
+    <div class="exercise-header">
+        <div class="header-content">
+            <h2>{{ exercise.title }}</h2>
+            {% if exercise.description %}
+                <p class="exercise-description">{{ exercise.description }}</p>
+            {% endif %}
+        </div>
+        <div class="exercise-actions">
+            <a href="{{ url_for('exercise.edit_exercise', exercise_id=exercise.id) }}" class="action-button edit">
+                <i class="fas fa-edit"></i>
+                <span>Modifier</span>
+            </a>
+            <form action="{{ url_for('exercise.delete_exercise', exercise_id=exercise.id) }}" method="POST" class="delete-form" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button type="submit" class="action-button delete" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cet exercice ?');">
+                    <i class="fas fa-trash-alt"></i>
+                    <span>Supprimer</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('exercise.submit_answer', exercise_id=exercise.id) }}" id="exercise-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        
+        <div class="pairs-container">
+            <canvas id="connection-canvas"></canvas>
+            
+            <!-- Colonne gauche -->
+            <div class="pairs-column">
+                <h4 class="column-title">Éléments de gauche</h4>
+                <div class="pairs-list">
+                    {% if content and content.pairs %}
+                        {% for pair in content.pairs | shuffle %}
+                            <div class="pair-item" 
+                                 data-index="{{ loop.index0 }}" 
+                                 onclick="selectLeft(this)">
+                                <div class="pair-content">
+                                    <div class="number-badge">{{ loop.index }}</div>
+                                    <span class="pair-text">{{ pair.first }}</span>
+                                </div>
+                                <input type="hidden" 
+                                       name="left_{{ loop.index0 }}" 
+                                       id="left_{{ loop.index0 }}" 
+                                       value="{{ loop.index0 }}">
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p>Ajoutez des paires en cliquant sur le bouton "Modifier"</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Colonne droite -->
+            <div class="pairs-column">
+                <h4 class="column-title">Éléments de droite</h4>
+                <div class="pairs-list">
+                    {% if content and content.pairs %}
+                        {% for pair in content.pairs | shuffle %}
+                            <div class="pair-item" 
+                                 data-index="{{ loop.index0 }}" 
+                                 onclick="selectRight(this)">
+                                <div class="pair-content">
+                                    <div class="number-badge">{{ loop.index }}</div>
+                                    <span class="pair-text">{{ pair.second }}</span>
+                                </div>
+                                <input type="hidden" 
+                                       name="right_{{ loop.index0 }}" 
+                                       id="right_{{ loop.index0 }}" 
+                                       value="{{ loop.index0 }}">
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p>Ajoutez des paires en cliquant sur le bouton "Modifier"</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="exercise-footer">
+            <button type="submit" class="submit-button">
+                <i class="fas fa-check"></i>
+                Valider mes réponses
+            </button>
+        </div>
+    </form>
+</div>
+
 <style>
     .exercise-container {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 2rem;
-        background-color: #f8f9fa;
-        border-radius: 16px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        padding: 20px;
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
 
     .exercise-header {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        margin-bottom: 2.5rem;
-        padding-bottom: 1.5rem;
-        border-bottom: 2px solid #e9ecef;
+        margin-bottom: 30px;
     }
 
-    .header-content {
-        flex: 1;
+    .header-content h2 {
+        margin: 0;
+        color: #2c3e50;
+        font-size: 1.8rem;
     }
 
-    .header-actions {
+    .exercise-description {
+        margin-top: 10px;
+        color: #666;
+    }
+
+    .exercise-actions {
         display: flex;
-        gap: 0.5rem;
-        margin-left: 2rem;
+        gap: 10px;
     }
 
     .action-button {
         display: inline-flex;
         align-items: center;
-        padding: 0.5rem 1rem;
-        border-radius: 6px;
-        font-weight: 500;
+        padding: 8px 16px;
+        border-radius: 4px;
         text-decoration: none;
-        transition: all 0.2s ease;
-        border: 2px solid transparent;
-        background: none;
+        transition: all 0.2s;
+        border: none;
         cursor: pointer;
         font-size: 0.9rem;
     }
 
     .action-button i {
-        margin-right: 0.5rem;
-        font-size: 1rem;
+        margin-right: 8px;
     }
 
     .action-button.edit {
-        color: #2196f3;
-        border-color: #2196f3;
-    }
-
-    .action-button.edit:hover {
-        background-color: #2196f3;
+        background-color: #007bff;
         color: white;
     }
 
     .action-button.delete {
-        color: #dc3545;
-        border-color: #dc3545;
-    }
-
-    .action-button.delete:hover {
         background-color: #dc3545;
         color: white;
     }
 
-    .exercise-header h2 {
-        color: #2c3e50;
-        font-size: 2rem;
-        margin-bottom: 1rem;
-    }
-
-    .exercise-description {
-        color: #6c757d;
-        font-size: 1.1rem;
-        max-width: 800px;
-        margin: 0 auto;
+    .action-button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
 
     .pairs-container {
-        display: flex;
-        justify-content: space-between;
-        gap: 4rem;
         position: relative;
-        margin: 2rem 0;
-        min-height: 400px;
-    }
-
-    .pairs-column {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-
-    .column-title {
-        color: #2c3e50;
-        font-size: 1.25rem;
-        margin-bottom: 1.5rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 2px solid #e9ecef;
-    }
-
-    .pairs-list {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-
-    .pair-item {
-        background: white;
-        border: 2px solid #e9ecef;
-        border-radius: 12px;
-        padding: 1rem;
-        cursor: pointer;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        position: relative;
-        overflow: hidden;
-    }
-
-    .pair-item:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        border-color: #90caf9;
-    }
-
-    .pair-content {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-    }
-
-    .number-badge {
-        background: #2196f3;
-        color: white;
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 600;
-        font-size: 0.9rem;
-    }
-
-    .pair-text {
-        color: #2c3e50;
-        font-size: 1rem;
-        flex: 1;
-    }
-
-    .pair-item.selected {
-        border-color: #2196f3;
-        background-color: #e3f2fd;
-        box-shadow: 0 0 0 2px #2196f3;
-    }
-
-    .pair-item.matched {
-        border-color: #4CAF50;
-        background-color: #E8F5E9;
-        box-shadow: 0 0 0 2px #4CAF50;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 40px;
+        margin: 20px 0;
+        padding: 20px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
     }
 
     #connection-canvas {
@@ -176,175 +173,162 @@
         z-index: 1;
     }
 
-    .exercise-footer {
+    .pairs-column {
+        position: relative;
+        z-index: 2;
+    }
+
+    .column-title {
+        margin-bottom: 20px;
+        color: #2c3e50;
+        font-size: 1.2rem;
         text-align: center;
-        margin-top: 3rem;
+    }
+
+    .pairs-list {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .pair-item {
+        background-color: white;
+        border: 2px solid #e9ecef;
+        border-radius: 6px;
+        padding: 15px;
+        cursor: pointer;
+        transition: all 0.2s;
+        position: relative;
+    }
+
+    .pair-item:hover {
+        border-color: #007bff;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .pair-item.selected {
+        border-color: #007bff;
+        background-color: #e3f2fd;
+    }
+
+    .pair-item.matched {
+        border-color: #28a745;
+        background-color: #d4edda;
+        pointer-events: none;
+    }
+
+    .pair-item.wrong {
+        border-color: #dc3545;
+        background-color: #f8d7da;
+        animation: shake 0.5s;
+    }
+
+    .pair-content {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .number-badge {
+        background-color: #e9ecef;
+        color: #495057;
+        width: 24px;
+        height: 24px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    .pair-text {
+        flex: 1;
+        color: #495057;
+    }
+
+    .exercise-footer {
+        margin-top: 30px;
+        text-align: center;
     }
 
     .submit-button {
-        background: #2196f3;
+        background-color: #28a745;
         color: white;
         border: none;
-        padding: 1rem 2rem;
-        border-radius: 8px;
-        font-size: 1.1rem;
-        font-weight: 600;
+        border-radius: 4px;
+        padding: 12px 24px;
+        font-size: 1rem;
         cursor: pointer;
-        transition: all 0.3s ease;
-        box-shadow: 0 2px 4px rgba(33, 150, 243, 0.3);
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
     }
 
     .submit-button:hover {
-        background: #1976d2;
+        background-color: #218838;
         transform: translateY(-1px);
-        box-shadow: 0 4px 8px rgba(33, 150, 243, 0.4);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
 
-    .button-text {
-        display: inline-block;
-        transform: translateY(1px);
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
     }
 
-    @keyframes pulse {
+    @keyframes matchSuccess {
         0% { transform: scale(1); }
-        50% { transform: scale(1.02); }
+        50% { transform: scale(1.05); }
         100% { transform: scale(1); }
     }
 
-    .pulse {
-        animation: pulse 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    /* Ajustements responsifs */
     @media (max-width: 768px) {
         .pairs-container {
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        .exercise-header {
             flex-direction: column;
-            gap: 2rem;
+            gap: 15px;
         }
 
-        .exercise-container {
-            padding: 1rem;
+        .exercise-actions {
+            width: 100%;
         }
 
-        .pair-item {
-            margin: 0.5rem 0;
+        .action-button {
+            flex: 1;
+            justify-content: center;
         }
-    }
-
-    /* Amélioration des transitions */
-    .pair-item {
-        will-change: transform;
-        backface-visibility: hidden;
-    }
-
-    .pair-item.selected,
-    .pair-item.matched {
-        transform: scale(1.02);
-    }
-
-    /* Effet de focus */
-    .pair-item:focus {
-        outline: none;
-        box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.4);
-    }
-
-    /* Style du canvas */
-    #connection-canvas {
-        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
     }
 </style>
-<div class="exercise-container">
-    <div class="exercise-header">
-        <div class="header-content">
-            <h2>{{ exercise.title }}</h2>
-            <p class="exercise-description">{{ exercise.description }}</p>
-            {% if not content or not content.left_items or not content.right_items %}
-            <div class="alert alert-info">
-                Aucun élément n'a été ajouté à cet exercice. 
-                <a href="{{ url_for('edit_exercise', exercise_id=exercise.id) }}" class="btn btn-primary btn-sm">Modifier l'exercice</a>
-            </div>
-            {% endif %}
-        </div>
-        {% if current_user.is_teacher %}
-        <div class="header-actions">
-            <a href="{{ url_for('edit_exercise', exercise_id=exercise.id) }}" class="action-button edit">
-                <i class="fas fa-edit"></i> Modifier
-            </a>
-            <form method="POST" action="{{ url_for('delete_exercise', exercise_id=exercise.id) }}" class="d-inline" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cet exercice ?');">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                <button type="submit" class="action-button delete">
-                    <i class="fas fa-trash"></i> Supprimer
-                </button>
-            </form>
-        </div>
-        {% endif %}
-    </div>
-
-    <form action="{{ url_for('submit_exercise_answer', exercise_id=exercise.id) }}" method="POST">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-        {% if course %}
-        <input type="hidden" name="course_id" value="{{ course.id }}"/>
-        {% endif %}
-        <div class="pairs-container">
-            <canvas id="connection-canvas"></canvas>
-            
-            <!-- Colonne de gauche -->
-            <div class="pairs-column">
-                <h4 class="column-title">Éléments de gauche</h4>
-                <div class="pairs-list">
-                    {% for item in content.left_items %}
-                        <div class="pair-item" data-index="{{ loop.index0 }}" onclick="selectLeft(this)">
-                            <div class="pair-content">
-                                <span class="pair-text">{{ item }}</span>
-                            </div>
-                            <input type="hidden" name="left_{{ loop.index0 }}" id="left_{{ loop.index0 }}" value="">
-                        </div>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <!-- Colonne de droite -->
-            <div class="pairs-column">
-                <h4 class="column-title">Éléments de droite</h4>
-                <div class="pairs-list">
-                    {% for item in content.shuffled_right_items %}
-    <div class="pair-item" data-index="{{ content.shuffled_indices[loop.index0] }}" onclick="selectRight(this)">
-        <div class="pair-content">
-            <div class="number-badge">{{ loop.index }}</div>
-            <span class="pair-text">{{ item }}</span>
-        </div>
-        <input type="hidden" name="right_{{ loop.index0 }}" id="right_{{ loop.index0 }}" value="">
-    </div>
-{% endfor %}
-                </div>
-            </div>
-        </div>
-
-        <div class="exercise-footer">
-            <button type="submit" class="submit-button">
-                <span class="button-text">Valider mes réponses</span>
-            </button>
-        </div>
-    </form>
-</div>
 
 <script>
+    // Variables globales
+    let canvas, ctx;
     let selectedLeft = null;
     let selectedRight = null;
     const pairs = [];
-    let canvas, ctx;
     const colors = [
         '#2196F3', '#4CAF50', '#9C27B0', '#FF9800', '#E91E63',
         '#3F51B5', '#009688', '#FF5722', '#795548', '#607D8B'
     ];
+    const sounds = {};
 
-    window.onload = function() {
+    // Initialisation
+    document.addEventListener('DOMContentLoaded', function() {
         canvas = document.getElementById('connection-canvas');
         ctx = canvas.getContext('2d');
         resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
-    }
 
+        window.addEventListener('resize', resizeCanvas);
+    });
+
+    // Redimensionnement du canvas
     function resizeCanvas() {
         const container = document.querySelector('.pairs-container');
         canvas.width = container.offsetWidth;
@@ -352,9 +336,11 @@
         redrawConnections();
     }
 
-    function selectLeft(element, index) {
+    // Sélection d'un élément à gauche
+    function selectLeft(element) {
+        if (element.classList.contains('matched')) return;
+
         if (selectedLeft === element) {
-            // Désélectionner si on clique à nouveau
             element.classList.remove('selected');
             selectedLeft = null;
             return;
@@ -364,18 +350,21 @@
             selectedLeft.classList.remove('selected');
         }
 
-        element.classList.add('selected');
-        element.classList.add('pulse');
         selectedLeft = element;
+        element.classList.add('selected');
 
         if (selectedRight) {
-            addPair(index);
+            checkPair();
         }
+
+        playSound('select');
     }
 
-    function selectRight(element, index) {
+    // Sélection d'un élément à droite
+    function selectRight(element) {
+        if (element.classList.contains('matched')) return;
+
         if (selectedRight === element) {
-            // Désélectionner si on clique à nouveau
             element.classList.remove('selected');
             selectedRight = null;
             return;
@@ -385,62 +374,84 @@
             selectedRight.classList.remove('selected');
         }
 
-        element.classList.add('selected');
-        element.classList.add('pulse');
         selectedRight = element;
+        element.classList.add('selected');
 
         if (selectedLeft) {
-            addPair(index);
+            checkPair();
         }
+
+        playSound('select');
     }
 
-    function addPair() {
+    // Vérification d'une paire
+    function checkPair() {
         if (!selectedLeft || !selectedRight) return;
 
-        const leftIndex = selectedLeft.dataset.index;
-        const rightIndex = selectedRight.dataset.index;
+        const leftIndex = parseInt(selectedLeft.dataset.index);
+        const rightIndex = parseInt(selectedRight.dataset.index);
 
-        // Supprimer les anciennes connexions
-        for (let i = pairs.length - 1; i >= 0; i--) {
-            if (pairs[i][0] === leftIndex || pairs[i][1] === rightIndex) {
-                const [oldLeft, oldRight] = pairs[i];
-                document.querySelector(`[data-index="${oldLeft}"]`).classList.remove('matched');
-                document.querySelector(`[data-index="${oldRight}"]`).classList.remove('matched');
-                pairs.splice(i, 1);
+        // Vérifier si la paire est correcte
+        const isCorrect = leftIndex === rightIndex;
+        if (isCorrect) {
+            // Paire correcte
+            pairs.push([leftIndex, rightIndex]);
+            selectedLeft.classList.add('matched');
+            selectedRight.classList.add('matched');
+            selectedLeft.classList.add('selected');
+            selectedRight.classList.add('selected');
+
+            // Effet sonore de succès
+            playSound('success');
+
+            // Mettre à jour les champs cachés et les connexions
+            updateHiddenFields();
+            redrawConnections();
+
+            // Vérifier si toutes les paires sont trouvées
+            if (pairs.length === document.querySelectorAll('.pair-item[data-index]').length / 2) {
+                setTimeout(() => {
+                    playSound('complete');
+                    document.querySelector('#exercise-form').submit();
+                }, 1000);
             }
+        } else {
+            // Paire incorrecte
+            selectedLeft.classList.add('wrong');
+            selectedRight.classList.add('wrong');
+            playSound('error');
+
+            // Animation d'erreur
+            selectedLeft.style.animation = 'wrongMatch 0.4s ease';
+            selectedRight.style.animation = 'wrongMatch 0.4s ease';
         }
 
-        // Ajouter la nouvelle paire
-        pairs.push([leftIndex, rightIndex]);
-        selectedLeft.classList.add('matched');
-        selectedRight.classList.add('matched');
-
-        // Animation de succès
-        selectedLeft.classList.add('pulse');
-        selectedRight.classList.add('pulse');
-
-        // Mettre à jour les champs cachés et les connexions
-        updateHiddenFields();
-        redrawConnections();
-
-        // Réinitialiser la sélection
-        setTimeout(() => {
-            selectedLeft.classList.remove('selected', 'pulse');
-            selectedRight.classList.remove('selected', 'pulse');
-            selectedLeft = null;
-            selectedRight = null;
-        }, 500);
+        // Réinitialiser la sélection seulement si la paire est incorrecte
+        if (!isCorrect) {
+            setTimeout(() => {
+                selectedLeft.classList.remove('selected', 'wrong');
+                selectedRight.classList.remove('selected', 'wrong');
+                selectedLeft.style.animation = '';
+                selectedRight.style.animation = '';
+                selectedLeft = null;
+                selectedRight = null;
+            }, 400);
+        }
     }
 
+    // Redessiner les connexions
     function redrawConnections() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         pairs.forEach((pair, index) => {
-            const leftElement = document.querySelector(`[data-index="${pair[0]}"]`);
-            const rightElement = document.querySelector(`[data-index="${pair[1]}"]`);
-            drawConnection(leftElement, rightElement, colors[index % colors.length]);
+            const leftElement = document.querySelector(`.pairs-column:first-child [data-index="${pair[0]}"]`);
+            const rightElement = document.querySelector(`.pairs-column:last-child [data-index="${pair[1]}"]`);
+            if (leftElement && rightElement) {
+                drawConnection(leftElement, rightElement, colors[index % colors.length]);
+            }
         });
     }
 
+    // Dessiner une connexion
     function drawConnection(left, right, color) {
         const leftRect = left.getBoundingClientRect();
         const rightRect = right.getBoundingClientRect();
@@ -451,38 +462,35 @@
         const endX = rightRect.left - containerRect.left;
         const endY = rightRect.top + rightRect.height/2 - containerRect.top;
 
-        // Dessiner la ligne
         ctx.beginPath();
         ctx.moveTo(startX, startY);
-        ctx.lineTo(endX, endY);
+        
+        // Courbe de Bézier pour une ligne plus fluide
+        const controlPoint1X = startX + (endX - startX) * 0.4;
+        const controlPoint1Y = startY;
+        const controlPoint2X = endX - (endX - startX) * 0.4;
+        const controlPoint2Y = endY;
+        
+        ctx.bezierCurveTo(
+            controlPoint1X, controlPoint1Y,
+            controlPoint2X, controlPoint2Y,
+            endX, endY
+        );
+
         ctx.strokeStyle = color;
         ctx.lineWidth = 3;
         ctx.stroke();
 
-        // Dessiner la flèche
-        const angle = Math.atan2(endY - startY, endX - startX);
-        const arrowLength = 15;
-        const arrowWidth = 8;
-
+        // Dessiner les points de début et de fin
         ctx.beginPath();
-        ctx.moveTo(endX, endY);
-        ctx.lineTo(endX - arrowLength * Math.cos(angle - Math.PI/6),
-                  endY - arrowLength * Math.sin(angle - Math.PI/6));
-        ctx.lineTo(endX - arrowLength * Math.cos(angle + Math.PI/6),
-                  endY - arrowLength * Math.sin(angle + Math.PI/6));
-        ctx.closePath();
+        ctx.arc(startX, startY, 4, 0, Math.PI * 2);
+        ctx.arc(endX, endY, 4, 0, Math.PI * 2);
         ctx.fillStyle = color;
         ctx.fill();
     }
 
+    // Mettre à jour les champs cachés
     function updateHiddenFields() {
-        // Réinitialiser tous les champs cachés
-        const leftInputs = document.querySelectorAll('input[name^="left_"]');
-        const rightInputs = document.querySelectorAll('input[name^="right_"]');
-        leftInputs.forEach(input => input.value = '');
-        rightInputs.forEach(input => input.value = '');
-
-        // Mettre à jour avec les nouvelles paires
         pairs.forEach((pair, index) => {
             const leftInput = document.getElementById(`left_${index}`);
             const rightInput = document.getElementById(`right_${index}`);
@@ -491,24 +499,18 @@
                 rightInput.value = pair[1];
             }
         });
+    }
 
-        // Debug log
-        console.log('Pairs mises à jour:', pairs);
-        pairs.forEach((pair, index) => {
-            console.log(`Paire ${index}:`, {
-                left: document.getElementById(`left_${index}`)?.value,
-                right: document.getElementById(`right_${index}`)?.value
-            });
-        });
+    function playSound(soundName) {
+        // Sons désactivés temporairement
+        return;
     }
 
     // Nettoyer les animations
     document.addEventListener('animationend', function(e) {
-        if (e.animationName === 'pulse') {
-            e.target.classList.remove('pulse');
+        if (e.animationName === 'matchSuccess' || e.animationName === 'wrongMatch') {
+            e.target.style.animation = '';
         }
     });
 </script>
-
 {% endblock %}
-

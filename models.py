@@ -180,7 +180,17 @@ class Exercise(db.Model):
     attempts = db.relationship('ExerciseAttempt', backref='exercise', lazy=True)
     
     def __repr__(self):
-        return f'<Exercise {self.title}>'
+        return f'<Exercise {self.id}: {self.title}>'
+
+    def to_dict(self):
+        """Convertit l'exercice en dictionnaire pour la sérialisation JSON."""
+        return {
+            'id': self.id,
+            'title': self.title,
+            'description': self.description,
+            'exercise_type': self.exercise_type,
+            'content': self.get_content()
+        }
     
     def get_content(self):
         """Récupère le contenu JSON de l'exercice de manière sécurisée"""
@@ -210,15 +220,19 @@ class Exercise(db.Model):
                     # S'assurer que les champs requis sont présents
                     if 'text' not in question:
                         question['text'] = ''
-                    if 'options' not in question:
-                        question['options'] = []
+                    if 'choices' not in question:
+                        question['choices'] = []
                     if 'correct_answer' not in question:
                         question['correct_answer'] = 0
                     
                     # S'assurer que correct_answer est dans les limites
-                    if question['correct_answer'] >= len(question['options']):
+                    if question['correct_answer'] >= len(question['choices']):
                         question['correct_answer'] = 0
-        
+                    
+                    # Convertir 'options' en 'choices' si nécessaire (rétro-compatibilité)
+                    if 'options' in question:
+                        question['choices'] = question.pop('options')
+            
             elif self.exercise_type == 'fill_in_blanks':
                 # Vérifier que le contenu a la bonne structure
                 if not isinstance(content, dict) or 'phrases' not in content:
@@ -264,6 +278,31 @@ class Exercise(db.Model):
                     for row in content['grid'][:grid_height]
                 ]
                 current_app.logger.info(f"[Exercise {self.id}] Final content: {content}")
+                    
+            elif self.exercise_type == 'pairs':
+                current_app.logger.info(f"[Exercise {self.id}] Processing pairs content: {content}")
+                
+                # Vérifier que le contenu a la bonne structure
+                if not isinstance(content, dict):
+                    current_app.logger.warning(f"[Exercise {self.id}] Content is not a dict, creating empty dict")
+                    content = {}
+                
+                # S'assurer que pairs est présent et est une liste
+                if 'pairs' not in content or not isinstance(content['pairs'], list):
+                    current_app.logger.warning(f"[Exercise {self.id}] Pairs list is missing or invalid, creating empty list")
+                    content['pairs'] = []
+                
+                # Vérifier chaque paire
+                valid_pairs = []
+                for pair in content['pairs']:
+                    if isinstance(pair, dict) and 'first' in pair and 'second' in pair:
+                        valid_pairs.append({
+                            'first': str(pair['first']),
+                            'second': str(pair['second'])
+                        })
+            
+                content['pairs'] = valid_pairs
+                current_app.logger.info(f"[Exercise {self.id}] Final pairs content: {content}")
                     
             return content
         

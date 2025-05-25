@@ -1,10 +1,11 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, session, abort, Response
 from flask_wtf import FlaskForm
-from wtforms import StringField, TextAreaField, SelectField
+from wtforms import StringField, TextAreaField, SelectField, MultipleFileField
 from wtforms.validators import DataRequired
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from werkzeug.utils import secure_filename
-from werkzeug.security import generate_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash
+from sqlalchemy import desc, or_
 from models import (
     db, User, Class, Course, Exercise, ExerciseAttempt, CourseFile,
     student_class_association, course_exercise
@@ -23,7 +24,7 @@ import unicodedata
 from flask_wtf import FlaskForm
 from wtforms import StringField, TextAreaField, MultipleFileField
 from wtforms.validators import DataRequired
-from modified_submit import init_app as init_exercise_routes
+from modified_submit import bp as exercise_bp
 
 # Configuration du logging
 logging.basicConfig(level=logging.DEBUG)
@@ -33,6 +34,9 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'votre_clé_secrète_ici'  # À changer en production
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Enregistrer le blueprint des exercices
+app.register_blueprint(exercise_bp)
 
 # Ajout du filtre shuffle pour Jinja2
 @app.template_filter('shuffle')
@@ -65,8 +69,6 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-# Initialize exercise routes
-init_exercise_routes(app)
 
 # Fonctions pour les filtres Jinja2
 def enumerate_filter(iterable, start=0):
@@ -81,6 +83,8 @@ def from_json_filter(value):
         return value
 
 def tojson_filter(value, indent=None):
+    if hasattr(value, 'to_dict'):
+        value = value.to_dict()
     return json.dumps(value, indent=indent, ensure_ascii=False)
 
 def get_file_icon(filename):
@@ -551,13 +555,11 @@ def remove_student_from_class(class_id, student_id):
 
 @app.route('/exercise-library')
 @login_required
-@teacher_required
 def exercise_library():
     # Récupérer les paramètres de filtrage
     search_query = request.args.get('search', '')
     exercise_type = request.args.get('type', '')
     subject = request.args.get('subject', '')
-    level = request.args.get('level', '')
 
     # Construire la requête de base
     query = Exercise.query
@@ -565,130 +567,35 @@ def exercise_library():
     # Appliquer les filtres
     if search_query:
         search = f"%{search_query}%"
-        query = query.filter(
-            db.or_(
-                Exercise.title.ilike(search),
-                Exercise.description.ilike(search)
-            )
-        )
-    
-    if exercise_type:
-        query = query.filter(Exercise.exercise_type == exercise_type)
-    
-    # Exécuter la requête
-    exercises = query.all()
+        query = query.filter(or_(
+            Exercise.title.ilike(search),
+            Exercise.description.ilike(search)
+        ))
 
-    # Debug: afficher le nombre d'exercices trouvés
-    app.logger.info(f"Nombre d'exercices trouvés : {len(exercises)}")
-    for ex in exercises:
-        app.logger.info(f"Exercice : {ex.title} (type: {ex.exercise_type})")
+    if exercise_type:
+        query = query.filter_by(exercise_type=exercise_type)
+
+    if subject:
+        query = query.filter_by(subject=subject)
+
+    # Exécuter la requête
+    exercises = query.order_by(desc(Exercise.created_at)).all()
+
+    # Préparer les types d'exercices pour le select
+    exercise_types = [
+        ('qcm', 'QCM'),
+        ('word_search', 'Mots mêlés'),
+        ('pairs', 'Paires')
+    ]
 
     return render_template('exercise_library.html',
                          exercises=exercises,
-                         exercise_types=Exercise.EXERCISE_TYPES,
+                         exercise_types=exercise_types,
                          search_query=search_query,
                          selected_type=exercise_type,
-                         selected_subject=subject,
-                         selected_level=level)
+                         selected_subject=subject)
 
-@app.route('/exercise/<int:exercise_id>')
-@login_required
-def view_exercise(exercise_id):
-    try:
-        app.logger.info(f'Accessing exercise {exercise_id}')
-        exercise = Exercise.query.get_or_404(exercise_id)
-        app.logger.info(f'Found exercise: {exercise.title}')
-        app.logger.info(f'Exercise type: {exercise.exercise_type}')
-        app.logger.info(f'Exercise content: {exercise.content}')
-        course_id = request.args.get('course_id', type=int)
-        course = Course.query.get(course_id) if course_id else None
-        app.logger.info(f'Course ID: {course_id}, Course: {course.title if course else None}')
-    except Exception as e:
-        app.logger.error(f'Error accessing exercise: {str(e)}')
-        app.logger.exception('Full error:')
-        return 'Une erreur est survenue lors de l\'accès à l\'exercice.', 500
-    
-    # Si l'exercice est accédé via un cours, vérifier que l'étudiant est inscrit
-    if course and current_user.role == 'student':
-        class_obj = Class.query.get(course.class_id)
-        if not class_obj or current_user not in class_obj.students:
-            flash('Vous n\'avez pas accès à cet exercice.', 'error')
-            return redirect(url_for('index'))
-    
-    attempt = None
-    content = None
-    progress = None
-    
-    # Récupérer le contenu de l'exercice
-    try:
-        content = exercise.get_content()
-    except json.JSONDecodeError as e:
-        app.logger.error(f'Error decoding exercise content: {str(e)}')
-        content = {}
-    
-    # Si l'utilisateur est un étudiant
-    if current_user.role == 'student':
-        # Récupérer la dernière tentative
-        attempt = ExerciseAttempt.query.filter_by(
-            exercise_id=exercise_id,
-            student_id=current_user.id
-        ).order_by(ExerciseAttempt.created_at.desc()).first()
-    
-    # Les enseignants peuvent accéder directement aux exercices
-    elif current_user.role != 'teacher':
-        flash("Vous n'avez pas les permissions nécessaires.", "error")
-        return redirect(url_for('index'))
-        
-    # Récupérer les statistiques et le contenu de l'exercice
-    app.logger.info(f'Exercise type: {exercise.exercise_type}')
-    app.logger.info(f'Raw content: {exercise.content}')
-    try:
-        content = exercise.get_content()
-        app.logger.info(f'Parsed content: {content}')
-        # Mélange des éléments de droite pour les appariements
-        if exercise.exercise_type == 'pairs' and 'right_items' in content:
-            right_items = content.get('right_items', [])
-            shuffled = list(enumerate(right_items))
-            import random
-            random.shuffle(shuffled)
-            content['shuffled_right_items'] = [item for idx, item in shuffled]
-            content['shuffled_indices'] = [idx for idx, item in shuffled]
-    except Exception as e:
-        app.logger.error(f'Error parsing content: {str(e)}')
-        app.logger.exception('Full error:')
-        content = {'questions': []}
-    progress = None
-    
-    progress = exercise.get_student_progress(current_user.id)
-    
-    # Choisir le template en fonction du type d'exercice
-    template = f'exercise_types/{exercise.exercise_type}.html'
-    app.logger.info(f'Using template: {template}')
-    
-    try:
-        # Vérifier que le template existe
-        if not os.path.exists(os.path.join(app.template_folder, template)):
-            app.logger.error(f'Template not found: {template}')
-            return 'Le template pour ce type d\'exercice n\'existe pas.', 500
-        
-        # Vérifier que les variables sont correctes
-        app.logger.info(f'Variables for template:')
-        app.logger.info(f'- exercise: {exercise}')
-        app.logger.info(f'- attempt: {attempt}')
-        app.logger.info(f'- content: {content}')
-        app.logger.info(f'- progress: {progress}')
-        app.logger.info(f'- course: {course}')
-        
-        return render_template(template,
-                            exercise=exercise,
-                            attempt=attempt,
-                            content=content,
-                            progress=progress,
-                            course=course)
-    except Exception as e:
-        app.logger.error(f'Error rendering template: {str(e)}')
-        app.logger.exception('Full template error:')
-        return 'Une erreur est survenue lors de l\'affichage de l\'exercice.', 500
+# La route view_exercise a été déplacée dans modified_submit.py
 
 @app.route('/exercise/<int:exercise_id>/teacher')
 @login_required
@@ -782,14 +689,22 @@ def edit_exercise(exercise_id):
             question_count = int(request.form.get('question_count', 0))
 
             for i in range(question_count):
-                pair = {
-                    'first': request.form.get(f'pair_{i}_first'),
-                    'second': request.form.get(f'pair_{i}_second')
-                }
-                if pair['first'] and pair['second']:
-                    pairs.append(pair)
+                first = request.form.get(f'pair_first_{i}')
+                second = request.form.get(f'pair_second_{i}')
+                if first and second:
+                    pairs.append({
+                        'first': first,
+                        'second': second
+                    })
 
-            content = {'pairs': pairs}
+            content = {
+                'pairs': pairs
+            }
+            # Mettre à jour le contenu de l'exercice
+            exercise.content = json.dumps(content)
+            db.session.commit()
+            flash('Exercice mis à jour avec succès !', 'success')
+            return redirect(url_for('view_exercise', exercise_id=exercise_id))
         elif exercise.exercise_type == 'drag_and_drop':
             items = request.form.getlist('items[]')
             zones = request.form.getlist('zones[]')
@@ -1448,6 +1363,19 @@ def create_exercise():
             
             content = {
                 'phrases': phrases
+            }
+
+        elif exercise_type == 'pairs':
+            pairs = []
+            question_count = int(request.form.get('question_count', 0))
+            for i in range(question_count):
+                first = request.form.get(f'pair_first_{i}')
+                second = request.form.get(f'pair_second_{i}')
+                if first and second:  # Ne garder que les paires complètes
+                    pairs.append({'first': first, 'second': second})
+            
+            content = {
+                'pairs': pairs
             }
 
         # Créer l'exercice
@@ -2668,10 +2596,6 @@ def submit_exercise_answer(exercise_id):
                 'details': feedback
             }
             
-        # Bloc supprimé car redondant, voir bloc unifié ci-dessus
-
-
-
 @app.route('/exercise/preview/<int:exercise_id>')
 @login_required
 def preview_exercise(exercise_id):
@@ -2718,13 +2642,6 @@ def preview_exercise(exercise_id):
     template = f'exercise_types/{exercise.exercise_type}.html'
     
     return render_template(template, exercise=exercise, content=content)
-
-
-
-
-
-
-# Route supprimée car dupliquée avec /exercise/create
 
 if __name__ == '__main__':
     with app.app_context():

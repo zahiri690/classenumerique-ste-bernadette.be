@@ -77,10 +77,10 @@
                     <p class="card-text">{{ question.text }}</p>
                     
                     <div class="list-group mt-3">
-                        {% for option in question.options %}
+                        {% for choice in question.choices %}
                             <label class="list-group-item list-group-item-action d-flex align-items-center gap-3 py-3">
-                                <input class="form-check-input flex-shrink-0" type="radio" name="answer[{{ question_index }}]" value="{{ loop.index0 }}" required {% if attempt and attempt.answers and attempt.answers[question_index] == loop.index0 %}checked{% endif %}>
-                                <span class="flex-grow-1">{{ option }}</span>
+                                <input class="form-check-input flex-shrink-0" type="radio" name="answer_{{ question_index }}" value="{{ loop.index0 }}" required {% if attempt and attempt.answers|from_json and (attempt.answers|from_json)[question_index]|string == loop.index0|string %}checked{% endif %}>
+                                <span class="flex-grow-1">{{ choice }}</span>
                             </label>
                         {% endfor %}
                     </div>

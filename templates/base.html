@@ -170,8 +170,6 @@
     
     {% block scripts %}{% endblock %}
     
-    {% if exercise and exercise.exercise_type == 'pairs' %}
-    <script src="{{ url_for('static', filename='js/pairs.js') }}"></script>
-    {% endif %}
+
 </body>
 </html>

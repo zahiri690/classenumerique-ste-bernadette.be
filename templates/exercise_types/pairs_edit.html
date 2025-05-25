@@ -1,44 +1,102 @@
-{% extends "edit_exercise.html" %}
+{% extends "base.html" %}
 
-{% block exercise_content %}
-<div id="pairs-editor" class="mb-4">
-    <input type="hidden" id="question_count" name="question_count" value="{{ content.pairs|length if content and content.pairs else 0 }}">
-    
-    <div id="pairs-container">
-        {% set pairs = content.pairs if content and content.pairs else [] %}
-        {% for pair in pairs %}
-            <div class="pair-block card mb-3">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="card-title mb-0">Paire {{ loop.index }}</h5>
-                        <button type="button" class="btn btn-danger btn-sm remove-pair">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label>Premier élément :</label>
-                                <input type="text" class="form-control" name="pair_{{ loop.index0 }}_first" 
-                                       value="{{ pair.first }}" required>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label>Second élément :</label>
-                                <input type="text" class="form-control" name="pair_{{ loop.index0 }}_second" 
-                                       value="{{ pair.second }}" required>
-                            </div>
-                        </div>
-                    </div>
+{% block content %}
+<form id="edit-exercise-form" method="POST" action="{{ url_for('exercise.edit_exercise', exercise_id=exercise.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+    <input type="hidden" name="exercise_type" value="pairs"/>
+
+    <div class="container-fluid p-0 mb-5">
+        <div class="card mb-4">
+            <div class="card-body">
+                <h3 class="card-title">Informations générales</h3>
+                <div class="mb-3">
+                    <label for="title" class="form-label">Titre de l'exercice</label>
+                    <input type="text" class="form-control" id="title" name="title" value="{{ exercise.title }}" required>
+                </div>
+                <div class="mb-3">
+                    <label for="description" class="form-label">Description (optionnelle)</label>
+                    <textarea class="form-control" id="description" name="description" rows="3">{{ exercise.description }}</textarea>
                 </div>
             </div>
-        {% endfor %}
-    </div>
+        </div>
 
-    <button type="button" id="add-pair" class="btn btn-primary">
-        <i class="fas fa-plus"></i> Ajouter une paire
-    </button>
+        <div class="card">
+            <div class="card-body">
+                <h3 class="card-title mb-4">Association de paires</h3>
+                <div class="alert alert-info mb-3">
+                    <i class="fas fa-info-circle"></i>
+                    Créez des paires d'éléments que les élèves devront associer correctement.
+                </div>
+            <div class="alert alert-primary" role="alert">
+                <i class="fas fa-info-circle"></i>
+                <strong>Astuce :</strong> Pour les exercices de multiplication, mettez l'opération dans la colonne de gauche (ex: 75 x 12) et le résultat dans la colonne de droite (ex: 900).
+            </div>
+            <div id="pairs-editor" class="mb-4">
+                <input type="hidden" id="question_count" name="question_count" value="{{ content.pairs|length if content and content.pairs else 0 }}">
+    
+                <div id="pairs-container" class="mb-4">
+                    {% if content and content.pairs %}
+                        {% for pair in content.pairs %}
+                            <div class="pair-block card mb-3" data-pair-index="{{ loop.index0 }}">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <h5 class="card-title mb-0">Paire {{ loop.index }}</h5>
+                                        <button type="button" class="btn btn-danger btn-sm remove-pair">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label class="form-label">Premier élément :</label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text"><i class="fas fa-calculator"></i></span>
+                                                    <input type="text" class="form-control" name="pair_first_{{ loop.index0 }}" 
+                                                           value="{{ pair.first }}" required placeholder="Ex: 75 x 12">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label class="form-label">Second élément :</label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text"><i class="fas fa-equals"></i></span>
+                                                    <input type="text" class="form-control" name="pair_second_{{ loop.index0 }}" 
+                                                           value="{{ pair.second }}" required placeholder="Ex: 900">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+
+                <button type="button" id="add-pair" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Ajouter une paire
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+    </div>
+</form>
+
+<div class="fixed-bottom bg-white border-top py-3" style="z-index: 1000;">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12 d-flex justify-content-between">
+                <a href="{{ url_for('exercise.view_exercise', exercise_id=exercise.id) }}" class="btn btn-secondary btn-lg">
+                    <i class="fas fa-times"></i> Annuler
+                </a>
+                <button type="submit" form="edit-exercise-form" class="btn btn-success btn-lg">
+                    <i class="fas fa-save"></i> Enregistrer les modifications
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -47,11 +105,18 @@ document.addEventListener('DOMContentLoaded', function() {
     const addPairBtn = document.getElementById('add-pair');
     const questionCountInput = document.getElementById('question_count');
 
+    if (!pairsContainer || !addPairBtn || !questionCountInput) {
+        console.error('Un ou plusieurs éléments nécessaires sont manquants');
+        return;
+    }
+
     // Ajouter une nouvelle paire
     addPairBtn.addEventListener('click', function() {
+        console.log('Ajout d\'une nouvelle paire');
         const pairCount = pairsContainer.children.length;
         const pairBlock = document.createElement('div');
         pairBlock.className = 'pair-block card mb-3';
+        pairBlock.dataset.pairIndex = pairCount;
         pairBlock.innerHTML = `
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -63,14 +128,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="row">
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label>Premier élément :</label>
-                            <input type="text" class="form-control" name="pair_${pairCount}_first" required>
+                            <label class="form-label">Premier élément :</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-calculator"></i></span>
+                                <input type="text" class="form-control" name="pair_first_${pairCount}" required placeholder="Ex: 75 x 12">
+                            </div>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label>Second élément :</label>
-                            <input type="text" class="form-control" name="pair_${pairCount}_second" required>
+                            <label class="form-label">Second élément :</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-equals"></i></span>
+                                <input type="text" class="form-control" name="pair_second_${pairCount}" required placeholder="Ex: 900">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -79,33 +150,45 @@ document.addEventListener('DOMContentLoaded', function() {
         pairsContainer.appendChild(pairBlock);
         updateQuestionCount();
         setupPairEvents(pairBlock);
+        console.log('Nouvelle paire ajoutée');
     });
 
     // Configuration des événements pour les paires existantes
     document.querySelectorAll('.pair-block').forEach(setupPairEvents);
 
     function setupPairEvents(pairBlock) {
-        // Supprimer une paire
-        pairBlock.querySelector('.remove-pair').addEventListener('click', function() {
-            if (confirm('Êtes-vous sûr de vouloir supprimer cette paire ?')) {
-                pairBlock.remove();
-                updatePairNumbers();
-                updateQuestionCount();
-            }
-        });
+        if (!pairBlock) return;
+        
+        const removeBtn = pairBlock.querySelector('.remove-pair');
+        if (removeBtn) {
+            removeBtn.addEventListener('click', function() {
+                if (confirm('Êtes-vous sûr de vouloir supprimer cette paire ?')) {
+                    pairBlock.remove();
+                    updatePairNumbers();
+                    updateQuestionCount();
+                }
+            });
+        }
     }
 
     function updatePairNumbers() {
         document.querySelectorAll('.pair-block').forEach((block, index) => {
-            block.querySelector('.card-title').textContent = `Paire ${index + 1}`;
-            block.querySelector('input[name^="pair_"][name$="_first"]').name = `pair_${index}_first`;
-            block.querySelector('input[name^="pair_"][name$="_second"]').name = `pair_${index}_second`;
+            const titleEl = block.querySelector('.card-title');
+            if (titleEl) titleEl.textContent = `Paire ${index + 1}`;
+
+            const firstInput = block.querySelector('input[name^="pair_first"]');
+            const secondInput = block.querySelector('input[name^="pair_second"]');
+
+            if (firstInput) firstInput.name = `pair_first_${index}`;
+            if (secondInput) secondInput.name = `pair_second_${index}`;
         });
     }
 
     function updateQuestionCount() {
         questionCountInput.value = pairsContainer.children.length;
+        console.log('Nombre de paires mis à jour:', questionCountInput.value);
     }
 });
 </script>
+
 {% endblock %}

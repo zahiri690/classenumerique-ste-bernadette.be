@@ -20,17 +20,17 @@
                     </div>
                     <div class="form-group">
                         <label>Question :</label>
-                        <input type="text" class="form-control question-input" name="questions[]" value="{{ question.question }}" required>
+                        <input type="text" class="form-control question-input" name="questions[]" value="{{ question.text }}" required>
                     </div>
                     <div class="options-container mt-3">
-                        {% for option in question.options %}
+                        {% for choice in question.choices %}
                             <div class="option-block d-flex align-items-center gap-2 mb-2">
                                 <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="correct[]" 
-                                           value="{{ loop.index0 }}" {{ 'checked' if question.correct == loop.index0 }}>
+                                    <input class="form-check-input" type="radio" name="correct_answers[{{ question_index }}]" 
+                                           value="{{ loop.index0 }}" {{ 'checked' if question.correct_answer == loop.index0 }}>
                                 </div>
-                                <input type="text" class="form-control option-input" name="options[]" 
-                                       value="{{ option }}" required>
+                                <input type="text" class="form-control option-input" name="choices[{{ question_index }}][]" 
+                                       value="{{ choice }}" required>
                                 <button type="button" class="btn btn-outline-danger btn-sm remove-option">
                                     <i class="fas fa-times"></i>
                                 </button>
@@ -68,9 +68,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     </button>
                 </div>
                 <div class="form-group">
-                    <label>Expression mathématique :</label>
+                    <label>Question :</label>
                     <div class="input-group">
-                        <input type="text" class="form-control expression-input" name="questions[${questionCount}]" required>
+                        <input type="text" class="form-control question-input" name="questions[]" required>
                         <span class="input-group-text">=</span>
                     </div>
                     <small class="form-text text-muted">Exemple : 0,07 x 900</small>
@@ -78,9 +78,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="options-container mt-3">
                     <div class="option-block d-flex align-items-center gap-2 mb-2">
                         <div class="form-check">
-                            <input class="form-check-input" type="radio" name="correct[${questionCount}]" value="0" checked>
+                            <input class="form-check-input" type="radio" name="correct_answers[${questionCount}]" value="0" checked>
                         </div>
-                        <input type="text" class="form-control option-input" name="options[${questionCount}][0]" required>
+                        <input type="text" class="form-control option-input" name="choices[${questionCount}][]" required>
                         <button type="button" class="btn btn-outline-danger btn-sm remove-option">
                             <i class="fas fa-times"></i>
                         </button>
@@ -111,20 +111,25 @@ document.addEventListener('DOMContentLoaded', function() {
         questionBlock.querySelector('.add-option').addEventListener('click', function() {
             const optionsContainer = questionBlock.querySelector('.options-container');
             const optionCount = optionsContainer.querySelectorAll('.option-block').length;
+            const questionIndex = Array.from(questionsContainer.children).indexOf(questionBlock);
+            
             const optionBlock = document.createElement('div');
             optionBlock.className = 'option-block d-flex align-items-center gap-2 mb-2';
             optionBlock.innerHTML = `
                 <div class="form-check">
-                    <input class="form-check-input" type="radio" name="correct[]" 
+                    <input class="form-check-input" type="radio" name="correct_answers[${questionIndex}]" 
                            value="${optionCount}">
                 </div>
-                <input type="text" class="form-control option-input" name="options[]" required>
+                <input type="text" class="form-control option-input" name="choices[${questionIndex}][]" required>
                 <button type="button" class="btn btn-outline-danger btn-sm remove-option">
                     <i class="fas fa-times"></i>
                 </button>
             `;
             optionsContainer.appendChild(optionBlock);
             setupOptionEvents(optionBlock);
+            
+            // Mettre à jour les indices des options
+            updateOptionNumbers(optionsContainer);
         });
 
         // Configuration des événements pour les options existantes
@@ -148,11 +153,16 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.question-block').forEach((block, index) => {
             block.querySelector('.card-title').textContent = `Question ${index + 1}`;
             
-            // Mettre à jour les valeurs des boutons radio
+            // Mettre à jour les noms des champs pour refléter le nouvel index
             block.querySelectorAll('.option-block').forEach((optionBlock, optionIndex) => {
                 const radio = optionBlock.querySelector('.form-check-input');
+                const input = optionBlock.querySelector('.option-input');
                 if (radio) {
+                    radio.name = `correct_answers[${index}]`;
                     radio.value = optionIndex;
+                }
+                if (input) {
+                    input.name = `choices[${index}][]`;
                 }
             });
         });

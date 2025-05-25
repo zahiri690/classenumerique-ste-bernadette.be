@@ -95,19 +95,24 @@
             <h3>Texte à trous</h3>
             <div class="alert alert-info">
                 <i class="bi bi-info-circle"></i>
-                Pour créer un trou, entourez le mot avec des crochets. Exemple : Le [chat] dort.
+                Pour créer un trou, utilisez trois underscores (___) dans votre texte.
+                Par exemple : "Le chat ___ la souris" avec la réponse "mange".
             </div>
-            <div id="phrases_container" class="mb-3"></div>
+            <div id="phrases_container"></div>
             <button type="button" class="btn btn-primary mb-3" onclick="addPhrase()">
                 <i class="bi bi-plus-circle"></i> Ajouter une phrase
             </button>
-            <small class="form-text text-muted">Utilisez ___ (trois tirets bas) pour indiquer l'emplacement d'un trou</small>
         </div>
 
-        <!-- Section Association de paires -->
+        <!-- Section Paires -->
         <div id="pairs_section" class="exercise-type-section" style="display: none;">
             <h3>Association de paires</h3>
-            <div id="pairs_container" class="mb-3"></div>
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i>
+                Créez des paires d'éléments que les élèves devront associer.
+                Par exemple : "chat" avec "cat", "chien" avec "dog", etc.
+            </div>
+            <div id="pairs_container"></div>
             <button type="button" class="btn btn-primary mb-3" onclick="addPair()">
                 <i class="bi bi-plus-circle"></i> Ajouter une paire
             </button>
@@ -346,28 +351,68 @@ function removePhrase(button) {
 
 function addPair() {
     const container = document.getElementById('pairs_container');
+    const pairCount = container.getElementsByClassName('pair-item').length;
+
     const pairDiv = document.createElement('div');
-    pairDiv.className = 'card mb-3';
+    pairDiv.className = 'pair-item card mb-3';
     pairDiv.innerHTML = `
         <div class="card-body">
-            <button type="button" class="btn-close float-end" onclick="this.closest('.card').remove()"></button>
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label class="form-label">Élément à gauche</label>
-                        <input type="text" class="form-control" name="items_left[]" required placeholder="Ex: 125 x 5">
-                    </div>
+            <div class="row g-3">
+                <div class="col-md-5">
+                    <label class="form-label">Premier élément</label>
+                    <input type="text" 
+                           class="form-control" 
+                           name="pair_first_${pairCount}" 
+                           placeholder="Ex: chat" 
+                           required>
                 </div>
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label class="form-label">Élément à droite</label>
-                        <input type="text" class="form-control" name="items_right[]" required placeholder="Ex: 625">
-                    </div>
+                <div class="col-md-5">
+                    <label class="form-label">Second élément</label>
+                    <input type="text" 
+                           class="form-control" 
+                           name="pair_second_${pairCount}" 
+                           placeholder="Ex: cat" 
+                           required>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="button" 
+                            class="btn btn-danger w-100" 
+                            onclick="removePair(this)">
+                        <i class="bi bi-trash"></i> Supprimer
+                    </button>
                 </div>
             </div>
         </div>
     `;
+
     container.appendChild(pairDiv);
+    updateQuestionCount();
+}
+
+function removePair(button) {
+    const pairItem = button.closest('.pair-item');
+    if (pairItem) {
+        pairItem.remove();
+        updateQuestionCount();
+    }
+}
+
+function updateQuestionCount() {
+    const container = document.getElementById('pairs_container');
+    const pairCount = container.getElementsByClassName('pair-item').length;
+    
+    // Supprimer l'ancien input s'il existe
+    const oldInput = container.querySelector('input[name="question_count"]');
+    if (oldInput) {
+        oldInput.remove();
+    }
+    
+    // Créer le nouvel input
+    const totalPairsInput = document.createElement('input');
+    totalPairsInput.type = 'hidden';
+    totalPairsInput.name = 'question_count';
+    totalPairsInput.value = pairCount;
+    container.appendChild(totalPairsInput);
 }
 
 function addOption(button) {
@@ -531,11 +576,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 break;
 
             case 'pairs':
-                const pairs = document.querySelectorAll('#pairs_container .card');
+                const pairs = document.querySelectorAll('#pairs_container .pair-item');
                 if (pairs.length === 0) {
                     e.preventDefault();
                     alert('Veuillez ajouter au moins une paire');
                     return;
+                }
+
+                // Vérifier que toutes les paires sont complètes
+                for (let i = 0; i < pairs.length; i++) {
+                    const first = pairs[i].querySelector(`input[name="pair_first_${i}"]`);
+                    const second = pairs[i].querySelector(`input[name="pair_second_${i}"]`);
+
+                    if (!first || !first.value.trim() || !second || !second.value.trim()) {
+                        e.preventDefault();
+                        alert('Veuillez remplir tous les champs des paires');
+                        return;
+                    }
                 }
                 break;
         }

@@ -30,7 +30,28 @@ def view_exercise(exercise_id):
     
     # Get exercise content
     content = exercise.get_content()
+    current_app.logger.info(f"[View Exercise] Raw content: {exercise.content}")
     current_app.logger.info(f"[View Exercise] Parsed content: {content}")
+    
+    if exercise.exercise_type == 'qcm':
+        if not content:
+            content = {'questions': []}
+        elif isinstance(content, str):
+            content = json.loads(content)
+        
+        current_app.logger.info(f"[View QCM] Content structure: {json.dumps(content, indent=2)}")
+        
+        # Vérifier la structure des questions
+        if 'questions' in content:
+            for i, q in enumerate(content['questions']):
+                current_app.logger.info(f"[View QCM] Question {i}: {q}")
+    
+    # Debug QCM content
+    if exercise.exercise_type == 'qcm':
+        current_app.logger.info(f"[View Exercise] QCM content structure: {json.dumps(content, indent=2)}")
+        if not content or 'questions' not in content:
+            current_app.logger.warning("[View Exercise] QCM content is missing or invalid")
+            content = {'questions': []}
     
     # Initialize content if needed
     if not content:
@@ -70,8 +91,8 @@ def submit_answer(exercise_id):
     if exercise.exercise_type == 'qcm':
         answers = {}
         for key, value in request.form.items():
-            if key.startswith('answer[') and key.endswith(']'):
-                question_index = int(key[7:-1])  # Extraire l'index entre answer[ et ]
+            if key.startswith('answer_'):
+                question_index = int(key.split('_')[1])
                 answers[question_index] = int(value)
         
         # Calculate score
@@ -168,14 +189,29 @@ def edit_exercise(exercise_id):
         if exercise.exercise_type == 'qcm':
             # Formater les données QCM
             questions = []
-            for i in range(len(request.form.getlist('questions[]'))):
-                question = {
-                    'text': request.form.getlist('questions[]')[i],
-                    'options': request.form.getlist(f'options[{i}][]'),
-                    'correct_answer': int(request.form.get(f'correct_answers[{i}]', 0))
-                }
-                questions.append(question)
+            question_count = len(request.form.getlist('questions[]'))
+            
+            current_app.logger.info(f"[Edit QCM] Processing {question_count} questions")
+            
+            for i in range(question_count):
+                question_text = request.form.getlist('questions[]')[i]
+                choices = request.form.getlist(f'choices[{i}][]')
+                correct_answer = request.form.get(f'correct_answers[{i}]', '0')
+                
+                current_app.logger.info(f"[Edit QCM] Question {i}: {question_text}")
+                current_app.logger.info(f"[Edit QCM] Choices {i}: {choices}")
+                current_app.logger.info(f"[Edit QCM] Correct answer {i}: {correct_answer}")
+                
+                if question_text and choices:
+                    question = {
+                        'text': question_text,
+                        'choices': choices,
+                        'correct_answer': int(correct_answer)
+                    }
+                    questions.append(question)
+            
             content = {'questions': questions}
+            current_app.logger.info(f"[Edit QCM] Final content: {json.dumps(content, indent=2)}")
             exercise.content = json.dumps(content)
         elif exercise.exercise_type == 'fill_in_blanks':
             # Formater les données du texte à trous
@@ -193,6 +229,24 @@ def edit_exercise(exercise_id):
                     })
             content = {'phrases': phrases}
             exercise.content = json.dumps(content)
+        elif exercise.exercise_type == 'pairs':
+            # Récupérer les paires depuis le formulaire
+            pairs = []
+            question_count = int(request.form.get('question_count', 0))
+            
+            for i in range(question_count):
+                first = request.form.get(f'pair_{i}_first')
+                second = request.form.get(f'pair_{i}_second')
+                if first and second:  # Ne garder que les paires complètes
+                    pairs.append({'first': first, 'second': second})
+            
+            # Créer le contenu de l'exercice
+            content = {
+                'pairs': pairs
+            }
+            
+            exercise.content = json.dumps(content)
+            
         elif exercise.exercise_type == 'word_search':
             # Récupérer les mots et la taille de la grille
             words = request.form.getlist('words[]')

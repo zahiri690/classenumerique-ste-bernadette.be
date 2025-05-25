@@ -76,17 +76,7 @@
                             {% endif %}
                         </form>
                     {% elif exercise.exercise_type == 'pairs' %}
-                        <form method="POST" action="{{ url_for('exercise.submit_answer', exercise_id=exercise.id) }}" id="exerciseForm">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                            {% include 'exercise_types/pairs_preview.html' %}
-                            {% if not attempt and not current_user.is_teacher %}
-                                <div class="text-center mt-4">
-                                    <button type="submit" class="btn btn-primary" id="submitBtn">
-                                        <i class="fas fa-check"></i> Valider mes réponses
-                                    </button>
-                                </div>
-                            {% endif %}
-                        </form>
+                        {% include 'exercise_types/pairs.html' %}
                     {% elif exercise.exercise_type == 'file' %}
                         <form method="POST" action="{{ url_for('exercise.submit_answer', exercise_id=exercise.id) }}" id="exerciseForm">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
