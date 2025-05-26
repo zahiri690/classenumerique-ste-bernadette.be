@@ -307,5 +307,41 @@ def delete_exercise(exercise_id):
     
     return redirect(url_for('exercise.exercise_library'))
 
+@bp.route('/exercise/<int:exercise_id>/stats')
+@login_required
+def exercise_stats(exercise_id):
+    exercise = db.get_or_404(Exercise, exercise_id)
+    
+    # Vérifier si l'utilisateur est un enseignant
+    if not current_user.is_teacher:
+        flash('Vous n\'avez pas la permission de voir les statistiques.', 'danger')
+        return redirect(url_for('exercise.view_exercise', exercise_id=exercise_id))
+    
+    # Récupérer toutes les tentatives pour cet exercice avec les informations des étudiants
+    attempts = ExerciseAttempt.query.filter_by(exercise_id=exercise_id)\
+        .join(ExerciseAttempt.student)\
+        .order_by(ExerciseAttempt.created_at.desc())\
+        .all()
+    
+    # Calculer les statistiques
+    total_attempts = len(attempts)
+    if total_attempts > 0:
+        avg_score = sum(attempt.score for attempt in attempts) / total_attempts
+    else:
+        avg_score = 0
+    
+    # Compter les tentatives par score
+    score_distribution = {}
+    for attempt in attempts:
+        score_range = (attempt.score // 10) * 10  # Arrondir au plus proche multiple de 10
+        score_distribution[score_range] = score_distribution.get(score_range, 0) + 1
+    
+    return render_template('exercise_stats.html',
+                         exercise=exercise,
+                         total_attempts=total_attempts,
+                         avg_score=avg_score,
+                         score_distribution=score_distribution,
+                         attempts=attempts)
+
 def init_app(app):
     app.register_blueprint(bp)

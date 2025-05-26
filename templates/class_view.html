@@ -28,8 +28,9 @@
                                     <h6 class="mb-0">{{ student.name }}</h6>
                                     <small class="text-muted">{{ student.email }}</small>
                                 </div>
-                                <button type="button" class="btn btn-outline-danger btn-sm" 
-                                        onclick="confirmRemoveStudent({{ student.id }}, '{{ student.name }}')">
+                                <button type="button" class="btn btn-outline-danger btn-sm remove-student-btn" 
+                                        data-student-id="{{ student.id }}" 
+                                        data-student-name="{{ student.name|e }}">
                                     <i class="bi bi-person-x"></i>
                                 </button>
                             </div>
@@ -64,8 +65,9 @@
                                     <a href="#" class="btn btn-outline-primary btn-sm">
                                         <i class="bi bi-eye"></i>
                                     </a>
-                                    <button type="button" class="btn btn-outline-danger btn-sm"
-                                            onclick="confirmDeleteCourse({{ course.id }}, '{{ course.title }}')">
+                                    <button type="button" class="btn btn-outline-danger btn-sm delete-course-btn"
+                                            data-course-id="{{ course.id }}"
+                                            data-course-title="{{ course.title|e }}">
                                         <i class="bi bi-trash"></i>
                                     </button>
                                 </div>
@@ -148,21 +150,33 @@
 
 {% block extra_js %}
 <script>
-function confirmDeleteCourse(courseId, courseTitle) {
-    if (confirm(`Êtes-vous sûr de vouloir supprimer le cours "${courseTitle}" ?`)) {
-        const form = document.getElementById('removeCourseForm');
-        form.action = `{{ url_for('delete_course', course_id=0) }}`.replace('0', courseId);
-        form.submit();
-    }
-}
+document.addEventListener('DOMContentLoaded', function() {
+    // Gestionnaire pour la suppression d'étudiant
+    document.querySelectorAll('.remove-student-btn').forEach(function(button) {
+        button.addEventListener('click', function() {
+            var studentId = this.dataset.studentId;
+            var studentName = this.dataset.studentName;
+            if (confirm('Êtes-vous sûr de vouloir retirer l\'élève "' + studentName + '" de la classe ?')) {
+                var form = document.getElementById('removeStudentForm');
+                form.action = '{{ url_for('remove_student', class_id=class_obj.id, student_id=0) }}'.replace('0', studentId);
+                form.submit();
+            }
+        });
+    });
 
-function confirmRemoveStudent(studentId, studentName) {
-    if (confirm(`Êtes-vous sûr de vouloir retirer l'élève "${studentName}" de la classe ?`)) {
-        const form = document.getElementById('removeStudentForm');
-        form.action = `{{ url_for('remove_student', class_id=class_obj.id, student_id=0) }}`.replace('0', studentId);
-        form.submit();
-    }
-}
+    // Gestionnaire pour la suppression de cours
+    document.querySelectorAll('.delete-course-btn').forEach(function(button) {
+        button.addEventListener('click', function() {
+            var courseId = this.dataset.courseId;
+            var courseTitle = this.dataset.courseTitle;
+            if (confirm('Êtes-vous sûr de vouloir supprimer le cours "' + courseTitle + '" ?')) {
+                var form = document.getElementById('removeCourseForm');
+                form.action = '{{ url_for('delete_course', course_id=0) }}'.replace('0', courseId);
+                form.submit();
+            }
+        });
+    });
+});
 </script>
 {% endblock %}
 

@@ -29,16 +29,20 @@
         
         <div class="pairs-container">
             <canvas id="connection-canvas"></canvas>
-            
-            <!-- Colonne gauche -->
+
+            {% if content and content.pairs %}
+                {% set shuffled_pairs = content.pairs|shuffle %}
+            {% endif %}
+
+            <!-- Éléments de gauche -->
             <div class="pairs-column">
-                <h4 class="column-title">Éléments de gauche</h4>
+                <h3>{{ content.left_title }}</h3>
                 <div class="pairs-list">
                     {% if content and content.pairs %}
-                        {% for pair in content.pairs | shuffle %}
+                        {% for pair in shuffled_pairs %}
                             <div class="pair-item" 
                                  data-index="{{ loop.index0 }}" 
-                                 onclick="selectLeft(this)">
+                                 data-side="left">
                                 <div class="pair-content">
                                     <div class="number-badge">{{ loop.index }}</div>
                                     <span class="pair-text">{{ pair.first }}</span>
@@ -55,15 +59,15 @@
                 </div>
             </div>
 
-            <!-- Colonne droite -->
+            <!-- Éléments de droite -->
             <div class="pairs-column">
-                <h4 class="column-title">Éléments de droite</h4>
+                <h3>{{ content.right_title }}</h3>
                 <div class="pairs-list">
                     {% if content and content.pairs %}
-                        {% for pair in content.pairs | shuffle %}
+                        {% for pair in content.pairs %}
                             <div class="pair-item" 
                                  data-index="{{ loop.index0 }}" 
-                                 onclick="selectRight(this)">
+                                 data-side="right">
                                 <div class="pair-content">
                                     <div class="number-badge">{{ loop.index }}</div>
                                     <span class="pair-text">{{ pair.second }}</span>
@@ -154,13 +158,27 @@
 
     .pairs-container {
         position: relative;
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 40px;
-        margin: 20px 0;
+        display: flex;
+        justify-content: space-between;
         padding: 20px;
+        margin: 20px 0;
+        gap: 40px;
         background-color: #f8f9fa;
         border-radius: 8px;
+        min-height: 400px;
+    }
+
+    .pairs-column {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .pairs-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
     }
 
     #connection-canvas {
@@ -285,9 +303,21 @@
         100% { transform: scale(1); }
     }
 
+    .moving-item {
+        position: absolute;
+        pointer-events: none;
+        z-index: 1000;
+        transition: all 0.5s ease-in-out;
+        opacity: 0.8;
+        transform-origin: center;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
     @media (max-width: 768px) {
         .pairs-container {
-            grid-template-columns: 1fr;
+            flex-direction: column;
             gap: 20px;
         }
 
@@ -312,21 +342,89 @@
     let canvas, ctx;
     let selectedLeft = null;
     let selectedRight = null;
-    const pairs = [];
+    let matchedPairs = [];
     const colors = [
         '#2196F3', '#4CAF50', '#9C27B0', '#FF9800', '#E91E63',
-        '#3F51B5', '#009688', '#FF5722', '#795548', '#607D8B'
+        '#3F51B5', '#009688', '#795548', '#607D8B', '#F44336'
     ];
-    const sounds = {};
-
-    // Initialisation
+    
+    // Stocker les paires originales
+    const originalPairs = JSON.parse('{{ content.pairs | tojson | safe if content and content.pairs else "[]" }}');
+    console.log('Pairs loaded:', originalPairs);
+    
     document.addEventListener('DOMContentLoaded', function() {
+        console.log('Original pairs:', originalPairs);
         canvas = document.getElementById('connection-canvas');
         ctx = canvas.getContext('2d');
         resizeCanvas();
 
         window.addEventListener('resize', resizeCanvas);
+
+        // Ajouter le gestionnaire d'événements pour tous les éléments
+        document.querySelectorAll('.pair-item').forEach(item => {
+            item.addEventListener('click', handlePairClick);
+        });
     });
+
+    // Gestionnaire de clic unique pour tous les éléments
+    function handlePairClick(event) {
+        const element = event.currentTarget;
+        const side = element.dataset.side;
+        
+        console.log('Click on', side, 'element:', element);
+
+        // Vérifier si l'élément est déjà apparié
+        if (element.classList.contains('matched')) {
+            console.log('Element already matched');
+            return;
+        }
+
+        if (side === 'left') {
+            // Désélectionner si déjà sélectionné
+            if (selectedLeft === element) {
+                console.log('Unselecting left element');
+                element.classList.remove('selected', 'wrong');
+                selectedLeft = null;
+                return;
+            }
+
+            // Réinitialiser la sélection précédente
+            if (selectedLeft) {
+                selectedLeft.classList.remove('selected', 'wrong');
+            }
+
+            selectedLeft = element;
+            element.classList.add('selected');
+            console.log('Selected left:', element.querySelector('.pair-text').textContent);
+
+            if (selectedRight) {
+                checkPair();
+            }
+        } else if (side === 'right') {
+            // Désélectionner si déjà sélectionné
+            if (selectedRight === element) {
+                console.log('Unselecting right element');
+                element.classList.remove('selected', 'wrong');
+                selectedRight = null;
+                return;
+            }
+
+            // Réinitialiser la sélection précédente
+            if (selectedRight) {
+                selectedRight.classList.remove('selected', 'wrong');
+            }
+
+            selectedRight = element;
+            element.classList.add('selected');
+            console.log('Selected right:', element.querySelector('.pair-text').textContent);
+
+            if (selectedLeft) {
+                checkPair();
+            }
+        }
+
+        playSound('select');
+    }
 
     // Redimensionnement du canvas
     function resizeCanvas() {
@@ -386,34 +484,95 @@
 
     // Vérification d'une paire
     function checkPair() {
-        if (!selectedLeft || !selectedRight) return;
+        if (!selectedLeft || !selectedRight) {
+            console.log('Missing selection');
+            return;
+        }
 
-        const leftIndex = parseInt(selectedLeft.dataset.index);
-        const rightIndex = parseInt(selectedRight.dataset.index);
+        // Vérifier si la paire n'est pas déjà associée
+        const alreadyPaired = matchedPairs.some(pair => 
+            pair.includes(parseInt(selectedLeft.dataset.index)) || pair.includes(parseInt(selectedRight.dataset.index))
+        );
 
-        // Vérifier si la paire est correcte
-        const isCorrect = leftIndex === rightIndex;
+        if (alreadyPaired) {
+            console.log('Elements already paired');
+            selectedLeft.classList.remove('selected');
+            selectedRight.classList.remove('selected');
+            selectedLeft = null;
+            selectedRight = null;
+            return;
+        }
+
+        // Récupérer le texte des éléments sélectionnés
+        const leftText = selectedLeft.querySelector('.pair-text').textContent;
+        const rightText = selectedRight.querySelector('.pair-text').textContent;
+
+        // Vérifier si la paire est correcte en comparant avec les paires originales
+        const isCorrect = originalPairs.some(pair => {
+            const match = (pair.first === leftText && pair.second === rightText);
+            console.log('Comparing:', pair, 'with', { first: leftText, second: rightText }, 'Match:', match);
+            return match;
+        });
+        console.log('Checking pair - Left:', leftText, 'Right:', rightText, 'Result:', isCorrect);
+
         if (isCorrect) {
+            // Créer une copie de l'élément gauche pour l'animation
+            const movingElement = selectedLeft.cloneNode(true);
+            movingElement.classList.add('moving-item');
+            document.querySelector('.pairs-container').appendChild(movingElement);
+
+            // Position initiale
+            const leftRect = selectedLeft.getBoundingClientRect();
+            const rightRect = selectedRight.getBoundingClientRect();
+            const containerRect = document.querySelector('.pairs-container').getBoundingClientRect();
+
+            movingElement.style.left = (leftRect.left - containerRect.left) + 'px';
+            movingElement.style.top = (leftRect.top - containerRect.top) + 'px';
+            movingElement.style.width = leftRect.width + 'px';
+            movingElement.style.height = leftRect.height + 'px';
+
+            // Déclencher l'animation
+            setTimeout(() => {
+                movingElement.style.left = (rightRect.left - containerRect.left) + 'px';
+                movingElement.style.top = (rightRect.top - containerRect.top) + 'px';
+                movingElement.style.opacity = '0';
+            }, 50);
+
             // Paire correcte
-            pairs.push([leftIndex, rightIndex]);
             selectedLeft.classList.add('matched');
             selectedRight.classList.add('matched');
-            selectedLeft.classList.add('selected');
-            selectedRight.classList.add('selected');
 
-            // Effet sonore de succès
+            // Ajouter la paire
+            matchedPairs.push([parseInt(selectedLeft.dataset.index), parseInt(selectedRight.dataset.index)]);
+
+            // Effet de succès
+            selectedLeft.style.animation = 'matchSuccess 0.4s ease';
+            selectedRight.style.animation = 'matchSuccess 0.4s ease';
+
+            // Dessiner la connexion
+            drawConnection(selectedLeft, selectedRight, colors[matchedPairs.length - 1]);
+
+            // Mettre à jour les champs cachés
+            updateHiddenFields();
+
+            // Son de succès
             playSound('success');
 
-            // Mettre à jour les champs cachés et les connexions
-            updateHiddenFields();
-            redrawConnections();
+            // Nettoyer l'élément d'animation
+            setTimeout(() => {
+                movingElement.remove();
+            }, 500);
+
+            // Réinitialiser les sélections
+            selectedLeft = null;
+            selectedRight = null;
 
             // Vérifier si toutes les paires sont trouvées
-            if (pairs.length === document.querySelectorAll('.pair-item[data-index]').length / 2) {
+            if (matchedPairs.length === document.querySelectorAll('.pair-item[data-index]').length / 2) {
                 setTimeout(() => {
                     playSound('complete');
                     document.querySelector('#exercise-form').submit();
-                }, 1000);
+                }, 500);
             }
         } else {
             // Paire incorrecte
@@ -442,7 +601,7 @@
     // Redessiner les connexions
     function redrawConnections() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        pairs.forEach((pair, index) => {
+        matchedPairs.forEach((pair, index) => {
             const leftElement = document.querySelector(`.pairs-column:first-child [data-index="${pair[0]}"]`);
             const rightElement = document.querySelector(`.pairs-column:last-child [data-index="${pair[1]}"]`);
             if (leftElement && rightElement) {
@@ -491,7 +650,7 @@
 
     // Mettre à jour les champs cachés
     function updateHiddenFields() {
-        pairs.forEach((pair, index) => {
+        matchedPairs.forEach((pair, index) => {
             const leftInput = document.getElementById(`left_${index}`);
             const rightInput = document.getElementById(`right_${index}`);
             if (leftInput && rightInput) {
